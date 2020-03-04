@@ -1,0 +1,10 @@
+log/
+fat/fat_bert_nq/generated_files/
+fat/fat_bert_nq/files/
+fat/fat_bert_nq/scripts/
+entity_linking/files/
+*.log
+__pycache__/
+*.pyc
+*.txt
+*.out
