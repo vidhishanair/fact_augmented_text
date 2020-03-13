@@ -2089,7 +2089,7 @@ def read_document_tokens_from_one_split(input_path):
     """Read candidates from a single jsonl file."""
     candidates_dict = {}
     with gzip.GzipFile(fileobj=tf.gfile.Open(input_path, "rb")) as input_file:
-        tf.logging.info("Reading examples from: %s", input_path)
+        tf.logging.info("Reading doc examples from: %s", input_path)
         for line in input_file:
             e = json.loads(line.decode('utf-8'))
             candidates_dict[e["example_id"]] = [token['token'] for token in e['document_tokens']]
@@ -2101,7 +2101,7 @@ def read_doc_tokens(input_pattern):
     input_paths = tf.gfile.Glob(input_pattern)
     final_dict = {}
     for input_path in input_paths:
-        final_dict.update(read_candidates_from_one_split(input_path))
+        final_dict.update(read_document_tokens_from_one_split(input_path))
     return final_dict
 
 
@@ -2222,6 +2222,8 @@ def compute_predictions(example, tokenizer = None, pred_fp = None, doc_tokens_di
       sorted_preds = sorted(
           predictions, reverse=True, key=lambda tup: tup[0])
       for (n_score, n_summary, n_start_span, n_end_span, n_input_ids, n_masked_input_ids, n_unique_id) in sorted_preds[0:5]:
+          if n_unique_id is None:
+              continue
           # question_entity_map = example.features[n_unique_id]["question_entity_map"].int64_list.value
           # document_entity_list = example.features[n_unique_id]["entity_list"].int64_list.value
           # token_to_textmap_index = example.features[n_unique_id]["token_to_textmap_index"].int64_list.value
@@ -2266,7 +2268,7 @@ def compute_predictions(example, tokenizer = None, pred_fp = None, doc_tokens_di
                       continue
               except:
                   print('didnt tokenize')
-
+          pred_fp.write(str(example.example_id)+"\t")
           pred_fp.write(" ".join(question).replace(" ##","")+"\t")
           pred_fp.write(" ".join(text).replace(" ##", "")+"\t")
           pred_fp.write(" ".join(facts).replace(" ##","")+"\t")
@@ -2391,7 +2393,7 @@ def compute_pred_dict(candidates_dict, dev_features, raw_results, tokenizer=None
     if True or FLAGS.mask_non_entity_in_text:
         if len(list(e.features.keys())) == 0 and len(list(e.results)) == 0:
             continue
-    summary = compute_predictions(e, tokenizer, doc_tokens_dict)
+    summary = compute_predictions(e, tokenizer,pred_fp, doc_tokens_dict)
     summary_dict[e.example_id] = summary
     nq_pred_dict[e.example_id] = summary.predicted_label
     if len(nq_pred_dict) % 100 == 0:
