@@ -248,7 +248,7 @@ class ApproximatePageRank(object):
           print('Getting subgraph')
           tf.logging.info('Getting subgraph')
       question_entity_ids = [int(self.data.ent2id[x]) for x in question_entities if x in self.data.ent2id]
-      random_facts = csr_get_random_facts_of_question(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict)
+      random_facts = csr_get_random_facts_of_question(question_entity_ids, self.data.adj_mat_t_csr, answer_entities, self.data.rel_dict)
       if FLAGS.num_facts_limit > 0:
           random_facts = random_facts[0:FLAGS.num_facts_limit]
       augmented_facts = self.get_augmented_facts(random_facts, self.data.entity_names)

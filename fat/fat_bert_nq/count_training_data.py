@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 import fat.fat_bert_nq.nq_data_utils as nq_utils
 
-input_data_dir = "/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/shortest_path_fixed_data_repreat_relweight_threehop_only_question_rw20_downweighted_masking_sharded_kb_data_mc48_alpha0.75_mseq512_unk0.02"
+input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/shortest_path_fixed_data_threehop_only_question_rw20_downweighted_masking_sharded_kb_data_mc48_alpha0.75_mseq512_unk0.02/"
 
 max_train_tasks = 50
 max_shard_splits = 7
