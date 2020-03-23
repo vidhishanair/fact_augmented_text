@@ -180,6 +180,10 @@ flags.DEFINE_bool(
 tf.flags.DEFINE_string(
     "fixed_training_data_filepath", None,
     "Filepath of fixed training data - unique ids")
+tf.flags.DEFINE_string(
+    "analyse_incorrect_preds", None,
+    "Flag to print incorrect predictions")
+
 
 flags.DEFINE_integer("num_facts_limit", -1,
                      "Limiting number of facts")
@@ -1444,7 +1448,10 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             end_position=end_position,
             answer_text=answer_text,
             answer_type=answer_type,
-            num_hops=num_hops
+            num_hops=num_hops,
+            entity_list=example.entity_list,
+            token_to_textmap_index=tok_to_textmap_index,
+            question_entity_map=example.question_entity_map[-1]
         )  # Added facts to is max context and token to orig?
         features.append(feature)
 
@@ -1612,7 +1619,10 @@ class InputFeatures(object):
                end_position=None,
                answer_text="",
                answer_type=AnswerType.SHORT,
-               num_hops=None):
+               num_hops=None,
+               question_entity_map=None,
+               entity_list=None,
+               token_to_textmap_index=None):
     self.unique_id = unique_id
     self.example_index = example_index
     self.doc_span_index = doc_span_index
@@ -1635,6 +1645,9 @@ class InputFeatures(object):
     self.answer_text = answer_text
     self.answer_type = answer_type
     self.num_hops = num_hops
+    self.entity_list = entity_list
+    self.question_entity_map = question_entity_map
+    self.token_to_textmap_index = token_to_textmap_index
 
 
 def read_nq_examples(input_file, is_training):
@@ -1988,19 +2001,27 @@ class FeatureWriter(object):
 
     features = collections.OrderedDict()
     features["unique_ids"] = create_int_feature([feature.unique_id])
+    features["example_ids"] = create_int_feature([feature.example_index])
     features["input_ids"] = create_int_feature(feature.input_ids)
     features["input_mask"] = create_int_feature(feature.input_mask)
     features["segment_ids"] = create_int_feature(feature.segment_ids)
+
+    if FLAGS.analyse_incorrect_preds:
+        # features["question_entity_map"] = create_int_feature(feature.question_entity_map)
+        features["token_to_textmap_index"] = create_int_feature(feature.token_to_textmap_index)
+        features["entity_list"] = create_int_feature(feature.entity_list)
 
     if FLAGS.mask_non_entity_in_text:
         features["text_only_input_ids"] = create_int_feature(feature.text_only_input_ids)
         features["text_only_mask"] = create_int_feature(feature.text_only_mask)
         features["masked_text_tokens_input_ids"] = create_int_feature(feature.masked_text_tokens_input_ids)
         features["masked_text_tokens_mask"] = create_int_feature(feature.masked_text_tokens_mask)
-        features["masked_text_tokens_with_facts_input_ids"] = create_int_feature(feature.masked_text_tokens_with_facts_input_ids)
+        features["masked_text_tokens_with_facts_input_ids"] = create_int_feature(
+                                                                feature.masked_text_tokens_with_facts_input_ids)
         features["masked_text_tokens_with_facts_mask"] = create_int_feature(feature.masked_text_tokens_with_facts_mask)
     if FLAGS.anonymize_entities:
-        features["anonymized_text_only_tokens_input_ids"] = create_int_feature(feature.anonymized_text_only_tokens_input_ids)
+        features["anonymized_text_only_tokens_input_ids"] = create_int_feature(
+                                                                feature.anonymized_text_only_tokens_input_ids)
         features["anonymized_text_only_tokens_mask"] = create_int_feature(feature.anonymized_text_only_tokens_mask)
 
     if FLAGS.use_shortest_path_facts:
@@ -2064,6 +2085,25 @@ def read_candidates(input_pattern):
     final_dict.update(read_candidates_from_one_split(input_path))
   return final_dict
 
+def read_document_tokens_from_one_split(input_path):
+    """Read candidates from a single jsonl file."""
+    candidates_dict = {}
+    with gzip.GzipFile(fileobj=tf.gfile.Open(input_path, "rb")) as input_file:
+        tf.logging.info("Reading doc examples from: %s", input_path)
+        for line in input_file:
+            e = json.loads(line.decode('utf-8'))
+            candidates_dict[e["example_id"]] = [token['token'] for token in e['document_tokens']]
+    return candidates_dict
+
+
+def read_doc_tokens(input_pattern):
+    """Read candidates with real multiple processes."""
+    input_paths = tf.gfile.Glob(input_pattern)
+    final_dict = {}
+    for input_path in input_paths:
+        final_dict.update(read_document_tokens_from_one_split(input_path))
+    return final_dict
+
 
 def get_best_indexes(logits, n_best_size):
   """Get the n-best logits from a list."""
@@ -2077,18 +2117,19 @@ def get_best_indexes(logits, n_best_size):
   return best_indexes
 
 
-def compute_predictions(example, tokenizer = None, pred_fp = None):
+def compute_predictions(example, tokenizer = None, pred_fp = None, doc_tokens_dict=None):
   """Converts an example into an NQEval object for evaluation."""
   predictions = []
   n_best_size = 10
   max_answer_length = 30
   num_hops = None
-
+  example_id = None
   for unique_id, result in example.results.items():
     if unique_id not in example.features:
       raise ValueError("No feature found with unique_id:", unique_id)
     token_map = example.features[unique_id]["token_map"].int64_list.value
     input_ids = example.features[unique_id]["input_ids"].int64_list.value
+    # example_id = example.features[unique_id]["example_ids"].int64_list.value[0]
     masked_input_ids = []
     if FLAGS.mask_non_entity_in_text and FLAGS.use_text_only:
         masked_input_ids = example.features[unique_id]["text_only_input_ids"].int64_list.value
@@ -2126,7 +2167,7 @@ def compute_predictions(example, tokenizer = None, pred_fp = None):
 
         # Span logits minus the cls logits seems to be close to the best.
         score = summary.short_span_score - summary.cls_token_score
-        predictions.append((score, summary, start_span, end_span, input_ids, masked_input_ids))
+        predictions.append((score, summary, start_span, end_span, input_ids, masked_input_ids, unique_id))
     if summary is None:
       # Hacking a summary where the first token of the context is the pred span
       summary = ScoreSummary()
@@ -2146,7 +2187,7 @@ def compute_predictions(example, tokenizer = None, pred_fp = None):
       end_span = token_map[end_index] + 1
       # Span logits minus the cls logits seems to be close to the best.
       score = summary.short_span_score - summary.cls_token_score
-      predictions.append((score, summary, start_span, end_span, input_ids, masked_input_ids))
+      predictions.append((score, summary, start_span, end_span, input_ids, masked_input_ids, None))
 
   # tf.logging.info("Predictions list len : %d", len(predictions))
   # tf.logging.info("Len of example results: %d", len(example.results.items()))
@@ -2162,10 +2203,10 @@ def compute_predictions(example, tokenizer = None, pred_fp = None):
     start_span = -1
     end_span = -1
     score = 0
-    predictions.append((score, summary, start_span, end_span, [], []))
+    predictions.append((score, summary, start_span, end_span, [], [], None))
   #else:
   #print(len(example.results.items()))
-  score, summary, start_span, end_span, input_ids, masked_input_ids = sorted(
+  score, summary, start_span, end_span, input_ids, masked_input_ids, unique_id = sorted(
       predictions, reverse=True, key=lambda tup: tup[0])[0]
   short_span = Span(start_span, end_span)
   long_span = Span(-1, -1)
@@ -2175,6 +2216,64 @@ def compute_predictions(example, tokenizer = None, pred_fp = None):
     if c["top_level"] and c["start_token"] <= start and c["end_token"] >= end:
       long_span = Span(c["start_token"], c["end_token"])
       break
+
+  if FLAGS.analyse_incorrect_preds:
+      # use example id for apr obj
+      sorted_preds = sorted(
+          predictions, reverse=True, key=lambda tup: tup[0])
+      for (n_score, n_summary, n_start_span, n_end_span, n_input_ids, n_masked_input_ids, n_unique_id) in sorted_preds[0:5]:
+          if n_unique_id is None:
+              continue
+          # question_entity_map = example.features[n_unique_id]["question_entity_map"].int64_list.value
+          # document_entity_list = example.features[n_unique_id]["entity_list"].int64_list.value
+          # token_to_textmap_index = example.features[n_unique_id]["token_to_textmap_index"].int64_list.value
+
+          # start_index = token_to_textmap_index[n_start_span]
+          # end_index = token_to_textmap_index[min(n_end_span,
+          #     len(token_to_textmap_index) -
+          #     1)]  # putting this min check need to check all this later
+          #
+          # sub_list = document_entity_list[start_index:end_index + 1]
+          #
+          # question_entities = set()
+          # for start_idx in question_entity_map.keys():
+          #     for sub_span in question_entity_map[start_idx]:
+          #         question_entities.add(sub_span[1])
+          # question_entities = list(question_entities)
+
+          answer = doc_tokens_dict[example.example_id][n_start_span:n_end_span]
+
+          input_ids = list(map(int, input_ids))
+          question = []
+          text = []
+          facts = []
+          current='question'
+          for token in input_ids:
+              try:
+                  word = tokenizer.convert_ids_to_tokens([token])[0]
+                  if current == 'question':
+                      question.append(word)
+                  elif current == 'text':
+                      text.append(word)
+                  elif current == 'facts':
+                      facts.append(word)
+                  else:
+                      print("Some exception in current word")
+                      print(current)
+                  if word == '[SEP]' and current == 'question':
+                      current = 'text'
+                  elif word == '[SEP]' and current == 'text':
+                      current = 'facts'
+                  else:
+                      continue
+              except:
+                  print('didnt tokenize')
+          pred_fp.write(str(example.example_id)+"\t")
+          pred_fp.write(" ".join(question).replace(" ##","")+"\t")
+          pred_fp.write(" ".join(text).replace(" ##", "")+"\t")
+          pred_fp.write(" ".join(facts).replace(" ##","")+"\t")
+          pred_fp.write(" ".join(answer)+"\n")
+
 
   input_ids = list(map(int, input_ids))
   if len(input_ids) > 0:
@@ -2215,39 +2314,39 @@ def compute_predictions(example, tokenizer = None, pred_fp = None):
   }
 
   # if FLAGS.write_pred_analysis:
-  #     input_ids = map(int, input_ids)
-  #     question = []
-  #     text = []
-  #     facts = []
-  #     current='question'
-  #     for token in input_ids:
-  #         try:
-  #             word = tokenizer.convert_ids_to_tokens([token])[0]
-  #             if current == 'question':
-  #                 question.append(word)
-  #             elif current == 'text':
-  #                 text.append(word)
-  #             elif current == 'facts':
-  #                 facts.append(word)
-  #             else:
-  #                 print("Some exception in current word")
-  #                 print(current)
-  #             if word == '[SEP]' and current == 'question':
-  #                 current = 'text'
-  #             elif word == '[SEP]' and current == 'text':
-  #                 current = 'facts'
-  #             else:
-  #                 continue
-  #         except:
-  #             print('didnt tokenize')
-  #
-  #     pred_fp.write(" ".join(question).replace(" ##","")+"\t")
-  #     pred_fp.write(" ".join(text).replace(" ##", "")+"\t")
-  #     pred_fp.write(" ".join(facts).replace(" ##","")+"\n")
+      # input_ids = map(int, input_ids)
+      # question = []
+      # text = []
+      # facts = []
+      # current='question'
+      # for token in input_ids:
+      #     try:
+      #         word = tokenizer.convert_ids_to_tokens([token])[0]
+      #         if current == 'question':
+      #             question.append(word)
+      #         elif current == 'text':
+      #             text.append(word)
+      #         elif current == 'facts':
+      #             facts.append(word)
+      #         else:
+      #             print("Some exception in current word")
+      #             print(current)
+      #         if word == '[SEP]' and current == 'question':
+      #             current = 'text'
+      #         elif word == '[SEP]' and current == 'text':
+      #             current = 'facts'
+      #         else:
+      #             continue
+      #     except:
+      #         print('didnt tokenize')
+      #
+      # pred_fp.write(" ".join(question).replace(" ##","")+"\t")
+      # pred_fp.write(" ".join(text).replace(" ##", "")+"\t")
+      # pred_fp.write(" ".join(facts).replace(" ##","")+"\n")
   return summary
 
 
-def compute_pred_dict(candidates_dict, dev_features, raw_results, tokenizer=None, pred_fp=None):
+def compute_pred_dict(candidates_dict, dev_features, raw_results, tokenizer=None, pred_fp=None, doc_tokens_dict=None):
   """Computes official answer key from raw logits."""
   sess = tf.Session()
   # raw_results_by_id = [
@@ -2294,7 +2393,7 @@ def compute_pred_dict(candidates_dict, dev_features, raw_results, tokenizer=None
     if True or FLAGS.mask_non_entity_in_text:
         if len(list(e.features.keys())) == 0 and len(list(e.results)) == 0:
             continue
-    summary = compute_predictions(e, tokenizer)
+    summary = compute_predictions(e, tokenizer,pred_fp, doc_tokens_dict)
     summary_dict[e.example_id] = summary
     nq_pred_dict[e.example_id] = summary.predicted_label
     if len(nq_pred_dict) % 100 == 0:
@@ -2410,6 +2509,10 @@ def main(_):
 
     eval_filename = os.path.join(FLAGS.eval_data_path, "eval.tf-record")
     #eval_filename = FLAGS.eval_data_path
+    pred_fp = None
+    if FLAGS.analyse_incorrect_preds:
+        pred_fp = os.path.join(FLAGS.eval_data_path, "incorrect_preds.txt")
+        pred_fp = tf.gfile.Open(pred_fp, 'w')
 
     tf.logging.info("***** Running predictions *****")
 
@@ -2438,9 +2541,8 @@ def main(_):
               end_logits=end_logits,
               answer_type_logits=answer_type_logits))
 
-    #avg_loss = float(sum(loss))/len(loss)
-    #print('Avg Loss: '+str(float(sum(loss))/len(loss)))
     candidates_dict = read_candidates(FLAGS.predict_file)
+    doc_tokens_dict = read_doc_tokens(FLAGS.predict_file)
     eval_features = [
         tf.train.Example.FromString(r)
         for r in tf.python_io.tf_record_iterator(eval_filename)
@@ -2448,7 +2550,7 @@ def main(_):
     # eval_features = []
     print("Computing predictions")
     nq_pred_dict = compute_pred_dict(candidates_dict, eval_features,
-                                     [r._asdict() for r in all_results], tokenizer, pred_fp=None)
+                                     [r._asdict() for r in all_results], tokenizer, pred_fp=pred_fp, doc_tokens_dict=doc_tokens_dict)
     predictions_json = {"predictions": list(nq_pred_dict.values())}
     with tf.gfile.Open(FLAGS.output_prediction_file, "w") as f:
       json.dump(predictions_json, f, indent=4)
