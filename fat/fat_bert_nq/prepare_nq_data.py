@@ -113,10 +113,18 @@ def main(_):
                                                     FLAGS.shard_split_id,
                                                     "jsonl.gz")
     print("Reading file %s", input_file)
+    file_stats_counter = {'example_count': 0, 'sp_recall_sum': 0}
     for example in nq_data_utils.get_nq_examples(input_file):
-      for instance in creator_fn.process(example, pretrain_file, fixed_train_list):
+      stats_count = None
+      for instance, stats_count in creator_fn.process(example, pretrain_file, fixed_train_list):
         instances.append(instance)
         instances_processed += 1
+        if FLAGS.use_passage_rw_facts_in_shortest_path or FLAGS.use_question_to_passage_facts_in_shortest_path:
+            file_stats_counter['example_count'] += 1
+            file_stats_counter['sp_recall_sum'] += stats_count['fact_recall_counter']
+      if stats_count is not None and FLAGS.use_question_rw_facts_in_shortest_path:
+          file_stats_counter['example_count'] += 1
+          file_stats_counter['sp_recall_sum'] += stats_count['fact_recall_counter']
       if example["has_correct_context"]:
         num_examples_with_correct_context += 1
       if examples_processed % 100 == 0:
@@ -131,6 +139,8 @@ def main(_):
     random.shuffle(instances)
     print("Total no: of instances in current shard: %d",
                     len(instances))
+    print("Example count: %d", file_stats_counter['example_count'])
+    print("Fact Recall sum: %d", file_stats_counter['sp_recall_sum'])
     output_file = nq_data_utils.get_sharded_filename(FLAGS.output_data_dir,
                                                      FLAGS.split, FLAGS.task_id,
                                                      FLAGS.shard_split_id,
