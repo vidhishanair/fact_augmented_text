@@ -1047,6 +1047,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     orig_to_tok_index = []
     all_doc_tokens = []
     features = []
+    feature_stats = []
     extended_entity_list = []
     for (i, token) in enumerate(example.doc_tokens):
         orig_to_tok_index.append(len(all_doc_tokens))
@@ -1205,7 +1206,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         fact_tokens = []
         answer_version = []
         ent_count = 0
-        feature_stats = []
         for i in range(doc_span.length):
             split_token_index = doc_span.start + i
             token_to_orig_map[len(tokens)] = tok_to_orig_index[split_token_index]
@@ -1553,9 +1553,9 @@ class CreateTFExampleFn(object):
       features, stat_counts = convert_single_example(nq_example, self.tokenizer, self.apr_obj,
                                                 self.is_training, pretrain_file, fixed_train_list)
       input_features.extend(features)
-      stats_counter.append(stat_counts)
+      stats_counter.extend(stat_counts)
 
-    for input_feature in input_features:
+    for idx, input_feature in enumerate(input_features):
       input_feature.example_index = int(example["id"])
       input_feature.unique_id = (
           input_feature.example_index + input_feature.doc_span_index)
@@ -1600,7 +1600,7 @@ class CreateTFExampleFn(object):
         features["token_map"] = create_int_feature(token_map)
 
       yield tf.train.Example(features=tf.train.Features(
-          feature=features)).SerializeToString(), stats_counter
+          feature=features)).SerializeToString(), stats_counter[idx]
 
 
 class InputFeatures(object):
