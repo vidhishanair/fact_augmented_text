@@ -139,15 +139,22 @@ def main(_):
     random.shuffle(instances)
     print("Total no: of instances in current shard: %d",
                     len(instances))
-    print("Example count: %d", file_stats_counter['example_count'])
-    print("Fact Recall sum: %d", file_stats_counter['sp_recall_sum'])
     output_file = nq_data_utils.get_sharded_filename(FLAGS.output_data_dir,
                                                      FLAGS.split, FLAGS.task_id,
                                                      FLAGS.shard_split_id,
                                                      "tf-record")
+    stats_file = nq_data_utils.get_sharded_filename(FLAGS.output_data_dir,
+                                                     FLAGS.split, FLAGS.task_id,
+                                                     FLAGS.shard_split_id,
+                                                     "stats.txt")
     with tf.python_io.TFRecordWriter(output_file) as writer:
       for instance in instances:
         writer.write(instance)
+    with open(stats_file, 'w') as fp:
+        print("Example count: %d", file_stats_counter['example_count'])
+        print("Fact Recall sum: %d", file_stats_counter['sp_recall_sum'])
+        fp.write("Example count: "+str(file_stats_counter['example_count'])+"\n")
+        fp.write("Fact Recall sum: "+str(file_stats_counter['sp_recall_sum'])+"\n")
 
   # For eval - First process every shard in parallel
   elif not FLAGS.is_training and not FLAGS.merge_eval:
