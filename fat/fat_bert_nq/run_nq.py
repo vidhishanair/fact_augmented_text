@@ -1338,7 +1338,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                 aligned_facts_in_shortest_path = set(aligned_nl_facts).intersection(set(shortest_path_aligned_facts))
                 fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
                 obj_ids = [x[0][1][0] for single_path in aligned_facts for x in single_path]
-                answers_reached = [x for x in obj_ids if x in answer_entity_ids]
+                answers_reached = list(set([x for x in obj_ids if x in answer_entity_ids]))
                 answer_recall_counter = len(answers_reached)/float(len(answer_entity_ids))
                 if FLAGS.verbose_logging:
                     print("Newly aligned Facts")
