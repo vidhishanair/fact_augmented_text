@@ -130,11 +130,11 @@ def main(_):
                     file_stats_counter['multi_answer_recall'] += stats_count['answer_recall_counter']
                 else:
                     file_stats_counter['single_answer_reach_counter'] += 1
-        if len(stats_count['answer_entity_ids']) > 1:
-            file_stats_counter['multi_answer_counter'] += 1
-            file_stats_counter['multi_answer_size_counter'] += len(stats_count['answer_entity_ids'])
-        else:
-            file_stats_counter['single_answer_counter'] += 1
+            if len(stats_count['answer_entity_ids']) > 1:
+                file_stats_counter['multi_answer_counter'] += 1
+                file_stats_counter['multi_answer_size_counter'] += len(stats_count['answer_entity_ids'])
+            else:
+                file_stats_counter['single_answer_counter'] += 1
 
       if stats_count is not None and FLAGS.use_question_rw_facts_in_shortest_path:
           file_stats_counter['example_count'] += 1
