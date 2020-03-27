@@ -113,7 +113,9 @@ def main(_):
                                                     FLAGS.shard_split_id,
                                                     "jsonl.gz")
     print("Reading file %s", input_file)
-    file_stats_counter = {'example_count': 0, 'sp_recall_sum': 0}
+    file_stats_counter = {'example_count': 0, 'sp_recall_sum': 0, 'answer_reach_counter':0,
+                          'single_answer_reach_counter':0, 'multi_answer_recall':0,
+                          'single_answer_counter':0, 'multi_answer_counter':0}
     for example in nq_data_utils.get_nq_examples(input_file):
       stats_count = None
       for instance, stats_count in creator_fn.process(example, pretrain_file, fixed_train_list):
@@ -122,9 +124,31 @@ def main(_):
         if FLAGS.use_passage_rw_facts_in_shortest_path or FLAGS.use_question_to_passage_facts_in_shortest_path:
             file_stats_counter['example_count'] += 1
             file_stats_counter['sp_recall_sum'] += stats_count['fact_recall_counter']
+            if stats_count['answers_reached'] > 0:
+                file_stats_counter['answer_reach_counter'] += 1
+                if stats_count['answer_entity_ids'] > 1:
+                    file_stats_counter['multi_answer_recall'] += stats_count['answer_recall_counter']
+                else:
+                    file_stats_counter['single_answer_reach_counter'] += 1
+            if stats_count['answer_entity_ids'] > 1:
+                file_stats_counter['multi_answer_counter'] += 1
+            else:
+                file_stats_counter['single_answer_counter'] += 1
+
       if stats_count is not None and FLAGS.use_question_rw_facts_in_shortest_path:
           file_stats_counter['example_count'] += 1
           file_stats_counter['sp_recall_sum'] += stats_count['fact_recall_counter']
+          if stats_count['answers_reached'] > 0:
+              file_stats_counter['answer_reach_counter'] += 1
+              if stats_count['answer_entity_ids'] > 1:
+                  file_stats_counter['multi_answer_recall'] += stats_count['answer_recall_counter']
+              else:
+                  file_stats_counter['single_answer_reach_counter'] += 1
+          if stats_count['answer_entity_ids'] > 1:
+              file_stats_counter['multi_answer_counter'] += 1
+          else:
+              file_stats_counter['single_answer_counter'] += 1
+
       if example["has_correct_context"]:
         num_examples_with_correct_context += 1
       if examples_processed % 100 == 0:
@@ -153,8 +177,18 @@ def main(_):
     with open(stats_file, 'w') as fp:
         print("Example count: %d", file_stats_counter['example_count'])
         print("Fact Recall sum: %d", file_stats_counter['sp_recall_sum'])
+        print("Count with answers reached: %d", file_stats_counter['answer_reach_counter'])
+        print("Single Answer Example count: %d", file_stats_counter['single_answer_counter'])
+        print("Single Answer Reached count: %d", file_stats_counter['single_answer_reach_counter'])
+        print("Multi Answer Example count: %d", file_stats_counter['single_answer_counter'])
+        print("Multi Answer recall sum: %d", file_stats_counter['single_answer_reach_counter'])
         fp.write("Example count: "+str(file_stats_counter['example_count'])+"\n")
         fp.write("Fact Recall sum: "+str(file_stats_counter['sp_recall_sum'])+"\n")
+        fp.write("Count with answers reached: "+str(file_stats_counter['answer_reach_counter'])+"\n")
+        fp.write("Single Answer Example count: "+str(file_stats_counter['single_answer_counter'])+"\n")
+        fp.write("Single Answer Reached count: "+str(file_stats_counter['single_answer_reach_counter'])+"\n")
+        fp.write("Multi Answer Example count: "+str(file_stats_counter['single_answer_counter'])+"\n")
+        fp.write("Multi Answer recall sum: "+str(file_stats_counter['single_answer_reach_counter'])+"\n")
 
   # For eval - First process every shard in parallel
   elif not FLAGS.is_training and not FLAGS.merge_eval:
