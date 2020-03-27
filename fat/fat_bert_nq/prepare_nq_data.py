@@ -124,17 +124,17 @@ def main(_):
         if FLAGS.use_passage_rw_facts_in_shortest_path or FLAGS.use_question_to_passage_facts_in_shortest_path:
             file_stats_counter['example_count'] += 1
             file_stats_counter['sp_recall_sum'] += stats_count['fact_recall_counter']
-            if stats_count['answers_reached'] > 0:
+            if len(stats_count['answers_reached']) > 0:
                 file_stats_counter['answer_reach_counter'] += 1
-                if stats_count['answer_entity_ids'] > 1:
+                if len(stats_count['answer_entity_ids']) > 1:
                     file_stats_counter['multi_answer_recall'] += stats_count['answer_recall_counter']
                 else:
                     file_stats_counter['single_answer_reach_counter'] += 1
-            if stats_count['answer_entity_ids'] > 1:
-                file_stats_counter['multi_answer_counter'] += 1
-                file_stats_counter['multi_answer_size_counter'] += len(stats_count['answer_entity_ids'])
-            else:
-                file_stats_counter['single_answer_counter'] += 1
+        if len(stats_count['answer_entity_ids']) > 1:
+            file_stats_counter['multi_answer_counter'] += 1
+            file_stats_counter['multi_answer_size_counter'] += len(stats_count['answer_entity_ids'])
+        else:
+            file_stats_counter['single_answer_counter'] += 1
 
       if stats_count is not None and FLAGS.use_question_rw_facts_in_shortest_path:
           file_stats_counter['example_count'] += 1
@@ -147,6 +147,7 @@ def main(_):
                   file_stats_counter['single_answer_reach_counter'] += 1
           if len(stats_count['answer_entity_ids']) > 1:
               file_stats_counter['multi_answer_counter'] += 1
+              file_stats_counter['multi_answer_size_counter'] += len(stats_count['answer_entity_ids'])
           else:
               file_stats_counter['single_answer_counter'] += 1
 
