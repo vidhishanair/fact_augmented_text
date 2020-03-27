@@ -180,15 +180,15 @@ def main(_):
         print("Count with answers reached: %d", file_stats_counter['answer_reach_counter'])
         print("Single Answer Example count: %d", file_stats_counter['single_answer_counter'])
         print("Single Answer Reached count: %d", file_stats_counter['single_answer_reach_counter'])
-        print("Multi Answer Example count: %d", file_stats_counter['single_answer_counter'])
-        print("Multi Answer recall sum: %d", file_stats_counter['single_answer_reach_counter'])
+        print("Multi Answer Example count: %d", file_stats_counter['multi_answer_counter'])
+        print("Multi Answer recall sum: %d", file_stats_counter['multi_answer_recall'])
         fp.write("Example count: "+str(file_stats_counter['example_count'])+"\n")
         fp.write("Fact Recall sum: "+str(file_stats_counter['sp_recall_sum'])+"\n")
         fp.write("Count with answers reached: "+str(file_stats_counter['answer_reach_counter'])+"\n")
         fp.write("Single Answer Example count: "+str(file_stats_counter['single_answer_counter'])+"\n")
         fp.write("Single Answer Reached count: "+str(file_stats_counter['single_answer_reach_counter'])+"\n")
-        fp.write("Multi Answer Example count: "+str(file_stats_counter['single_answer_counter'])+"\n")
-        fp.write("Multi Answer recall sum: "+str(file_stats_counter['single_answer_reach_counter'])+"\n")
+        fp.write("Multi Answer Example count: "+str(file_stats_counter['multi_answer_counter'])+"\n")
+        fp.write("Multi Answer recall sum: "+str(file_stats_counter['multi_answer_recall'])+"\n")
 
   # For eval - First process every shard in parallel
   elif not FLAGS.is_training and not FLAGS.merge_eval:
