@@ -115,7 +115,7 @@ def main(_):
     print("Reading file %s", input_file)
     file_stats_counter = {'example_count': 0, 'sp_recall_sum': 0, 'answer_reach_counter':0,
                           'single_answer_reach_counter':0, 'multi_answer_recall':0,
-                          'single_answer_counter':0, 'multi_answer_counter':0}
+                          'single_answer_counter':0, 'multi_answer_counter':0, 'multi_answer_size_counter':0}
     for example in nq_data_utils.get_nq_examples(input_file):
       stats_count = None
       for instance, stats_count in creator_fn.process(example, pretrain_file, fixed_train_list):
@@ -132,6 +132,7 @@ def main(_):
                     file_stats_counter['single_answer_reach_counter'] += 1
             if stats_count['answer_entity_ids'] > 1:
                 file_stats_counter['multi_answer_counter'] += 1
+                file_stats_counter['multi_answer_size_counter'] += len(stats_count['answer_entity_ids'])
             else:
                 file_stats_counter['single_answer_counter'] += 1
 
@@ -182,6 +183,7 @@ def main(_):
         print("Single Answer Reached count: %d", file_stats_counter['single_answer_reach_counter'])
         print("Multi Answer Example count: %d", file_stats_counter['multi_answer_counter'])
         print("Multi Answer recall sum: %d", file_stats_counter['multi_answer_recall'])
+        print("Multi Answer Size counter: %d", file_stats_counter['multi_answer_size_counter'])
         fp.write("Example count: "+str(file_stats_counter['example_count'])+"\n")
         fp.write("Fact Recall sum: "+str(file_stats_counter['sp_recall_sum'])+"\n")
         fp.write("Count with answers reached: "+str(file_stats_counter['answer_reach_counter'])+"\n")
@@ -189,6 +191,7 @@ def main(_):
         fp.write("Single Answer Reached count: "+str(file_stats_counter['single_answer_reach_counter'])+"\n")
         fp.write("Multi Answer Example count: "+str(file_stats_counter['multi_answer_counter'])+"\n")
         fp.write("Multi Answer recall sum: "+str(file_stats_counter['multi_answer_recall'])+"\n")
+        fp.write("Multi Answer Size counter: "+str(file_stats_counter['multi_answer_size_counter'])+"\n")
 
   # For eval - First process every shard in parallel
   elif not FLAGS.is_training and not FLAGS.merge_eval:
