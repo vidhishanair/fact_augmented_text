@@ -1087,29 +1087,29 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     #     print(tok_start_position, tok_end_position)
     #     exit()
 
-    if FLAGS.create_fact_annotation_data and is_training:
-        aligned_nl_facts, facts, num_hops, question_entity_names, \
-        answer_entity_names, answer_entity_ids = get_all_question_answer_paths(apr_obj,
-                                                               tokenizer, example.question_entity_map[-1], example.answer,
-                                                               example.ner_entity_list, example.doc_tokens, pretrain_file)
-        a = example.annotation
-        la_text, sa_text = "", ""
-        if a is not None:
-            idx = a["long_answer"]["candidate_index"]
-            la_text = a["long_answer"]["text_answer"]
-            if a["short_answers"]:
-                start_token = a["short_answers"][0]["start_token"]
-                end_token = a["short_answers"][-1]["end_token"]
-                sa_text = a["short_answers"][0]["text_answer"]
-        aligned_nl_facts = list(set(aligned_nl_facts))
-        for path in aligned_nl_facts:
-            if path != '':
-                pretrain_file.write(" ".join(query_tokens).replace(" ##", "")+"\t"
-                                    +str(question_entity_names)+"\t"
-                                    +str(la_text)+"\t"
-                                    +str(sa_text)+"\t"
-                                    +str(answer_entity_names)+"\t"
-                                    +str(path)+"\n")
+    # if FLAGS.create_fact_annotation_data and is_training:
+    #     aligned_nl_facts, facts, num_hops, question_entity_names, \
+    #     answer_entity_names, answer_entity_ids = get_all_question_answer_paths(apr_obj,
+    #                                                            tokenizer, example.question_entity_map[-1], example.answer,
+    #                                                            example.ner_entity_list, example.doc_tokens, pretrain_file)
+    #     a = example.annotation
+    #     la_text, sa_text = "", ""
+    #     if a is not None:
+    #         idx = a["long_answer"]["candidate_index"]
+    #         la_text = a["long_answer"]["text_answer"]
+    #         if a["short_answers"]:
+    #             start_token = a["short_answers"][0]["start_token"]
+    #             end_token = a["short_answers"][-1]["end_token"]
+    #             sa_text = a["short_answers"][0]["text_answer"]
+    #     aligned_nl_facts = list(set(aligned_nl_facts))
+    #     for path in aligned_nl_facts:
+    #         if path != '':
+    #             pretrain_file.write(" ".join(query_tokens).replace(" ##", "")+"\t"
+    #                                 +str(question_entity_names)+"\t"
+    #                                 +str(la_text)+"\t"
+    #                                 +str(sa_text)+"\t"
+    #                                 +str(answer_entity_names)+"\t"
+    #                                 +str(path)+"\n")
 
     # The -4 accounts for [CLS], [SEP] and [SEP] and [SEP]
     max_tokens_for_doc = FLAGS.max_seq_length - len(query_tokens) - 4
@@ -1273,8 +1273,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         #print(" ".join(text_tokens).replace(" ##", ""))
         if FLAGS.create_pretrain_data:
             pretrain_file.write(" ".join(text_tokens).replace(" ##", "")+"\n")
-        # if FLAGS.create_fact_annotation_data:
-        #     pretrain_file.write(" ".join(query_tokens).replace(" ##", "")+"\t"+" ".join(text_tokens).replace(" ##", "")+"\t")
 
         fact_recall_counter = 0
         answers_reached = 0
@@ -1487,7 +1485,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     if FLAGS.mask_non_entity_in_text and not is_training and dev_valid_pos_answers == 0:
         print('Dev example has no valid positive instances.')
         return [], None
-    if FLAGS.create_fact_annotation_data and not is_training:
+    if FLAGS.create_fact_annotation_data :
         aligned_facts, facts, num_hops, question_entity_names, answer_entity_names, _ = get_related_facts(None, tok_to_textmap_index,
                                                                        example.entity_list, apr_obj,
                                                                        tokenizer, example.question_entity_map[-1], example.answer,
