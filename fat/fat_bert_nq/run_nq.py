@@ -1507,7 +1507,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                     +str(la_text)+"\t"
                                     +str(sa_text)+"\t"
                                     +str(answer_entity_names)+"\t"
-                                    +" ".join(aligned_facts).replace(" ##", "")+"\n")
+                                    +aligned_facts+"\n")
                                     # +str(path)+"\n")
     return features, feature_stats
 
