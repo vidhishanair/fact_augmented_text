@@ -1502,7 +1502,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         # aligned_facts = list(set(aligned_facts))
         if aligned_facts != '':
             pretrain_file.write(str(example.example_id)+"\t"
-                                    " ".join(query_tokens).replace(" ##", "")+"\t"
+                                    +" ".join(query_tokens).replace(" ##", "")+"\t"
                                     +str(question_entity_names)+"\t"
                                     +str(la_text)+"\t"
                                     +str(sa_text)+"\t"
