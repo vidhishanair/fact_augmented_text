@@ -15,6 +15,7 @@ flags.DEFINE_string('question_emb_file', '', 'Read nq data to extract entities')
 flags.DEFINE_string('relation_emb_file', '', 'Read nq data to extract entities')
 flags.DEFINE_string('relations_file', None, 'input relations dict')
 flags.DEFINE_string('rel2id_file', None, 'input relations dict')
+flags.DEFINE_string('output_file', None, '')
 
 flags.DEFINE_integer("shard_id", None,
                      "Train and dev shard to read from and write to.")
@@ -41,7 +42,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(FLAGS.relations_file, 'rb')) as op4:
     # for rel_id, val in relations.items():
     #     rel_name = val['name']
     #     rel = id2rel[rel_id]
-
+wp = open(FLAGS.output_file, 'w')
 with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
     count = 0
     for line in fp:
@@ -56,8 +57,9 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
             score = np.dot(question_emb, relation_emb) / (
                     np.linalg.norm(question_emb) *
                     np.linalg.norm(relation_emb))
-            rel_name = relations[rel2id[rel_id]]['name']
+            rel_name = relations[str(rel2id[rel_id])]['name']
             scores.append((rel_name, score))
-        sorted_scores = sorted(scores, key=lambda x: x[1])
+        sorted_scores = sorted(scores, key=lambda x: x[1], reverse=True)
         print(question_text)
         print(sorted_scores)
+        wp.write(str(q_id) + "\t" + question_text + "\t" + str(sorted_scores) + "\n")
