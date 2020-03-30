@@ -7,6 +7,7 @@ from tqdm import tqdm
 import tensorflow as tf
 import gzip
 from fat.fat_bert_nq import nq_data_utils
+from nltk.corpus import stopwords as SW
 
 flags = tf.flags
 FLAGS = flags.FLAGS
@@ -21,14 +22,25 @@ flags.DEFINE_string(
     "mode", "train",
     "Train and dev split to read from and write to. Accepted values: ['train', 'dev', 'test']"
 )
+flags.DEFINE_bool(
+    "filter_sw", False,
+    ""
+)
 
 questions_file = nq_data_utils.get_sharded_filename(FLAGS.nq_dir, FLAGS.mode, FLAGS.task_id, FLAGS.shard_id, 'jsonl.gz')
 embeddings_file = "/remote/bones/user/vbalacha/datasets/glove/glove.6B.300d.txt"
 output_file = nq_data_utils.get_sharded_filename(FLAGS.output_dir, FLAGS.mode, FLAGS.task_id, FLAGS.shard_id, 'pkl')
 dim = 300
+stopwords = set(SW.words("english"))
+stopwords.add("'s")
 
 word_to_question = {}
 question_lens = {}
+
+def extract_keywords(text):
+    """Remove wh-words and stop words from text."""
+    return u" ".join([token for token in nltk.word_tokenize(text)
+                      if token not in stopwords])
 
 def _add_word(word, v):
     if word not in word_to_question: word_to_question[word] = []
@@ -40,6 +52,8 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(questions_file, "rb")) as input_file:
     for line in input_file:
         data = json.loads(line)
         qId, question_text = data["example_id"], data["question_text"]
+        if FLAGS.filter_sw:
+            question_text = extract_keywords(question_text)
         for word in question_text.split():
             _add_word(word, qId)
 
