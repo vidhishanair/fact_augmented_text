@@ -12,7 +12,7 @@ flags = tf.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('nq_dir', '/remote/bones/user/vbalacha/datasets/ent_linked_nq_new/', 'Read nq data to extract entities')
-flags.DEFINE_string('apr_files_dir', '', 'Read nq data to extract entities')
+#flags.DEFINE_string('apr_files_dir', '', 'Read nq data to extract entities')
 flags.DEFINE_string('question_emb_file', '', 'Read nq data to extract entities')
 flags.DEFINE_string('relation_emb_file', '', 'Read nq data to extract entities')
 flags.DEFINE_string('relations_file', None, 'input relations dict')
@@ -35,7 +35,7 @@ id2rel = {str(idx): ent for ent, idx in rel2id.items()}
 dim = 300
 
 apr_obj = ApproximatePageRank(mode='train', task_id=FLAGS.task_id,
-                              shard_id=FLAGS.shard_split_id)
+                              shard_id=FLAGS.shard_id)
 
 question_embeddings = pkl.load(open(FLAGS.question_emb_file, 'rb'))
 relation_embeddings = pkl.load(open(FLAGS.relation_emb_file, 'rb'))
@@ -85,7 +85,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
             obj_id = row[ii]
             subj_id = question_entity_ids[col[ii]]
             rel_id = apr_obj.data.rel_dict[(subj_id, obj_id)]
-            rel_name = relations[str(rel2id[rel_id])]['name']
+            rel_name = relations[str(rel_id)]['name']
             qrels.append(rel_name)
         qrels = list(set(qrels))
         filtered_relations = [(rel_name, score) for (rel_name,score) in sorted_scores if rel_name in qrels]
