@@ -266,23 +266,7 @@ class CsrData(object):
               score = np.dot(question_embedding, relation_embeddings[rel]) / (
                 np.linalg.norm(question_embedding) *
                 np.linalg.norm(relation_embeddings[rel]))
-          #print(np.dot(question_embedding, relation_embeddings[rel]))
-          #print(np.linalg.norm(question_embedding))
-          #print(np.linalg.norm(relation_embeddings[rel]))
-          #print(relation_embeddings[rel])
-          #rid = rel2id[rel]
-          #print(entity_names['r'][rid]['name'])
-          #print(list(relation_embeddings.keys())[0])
-          print(question_embedding)
-          print(relation_embeddings[rel])
-          print((
-                np.linalg.norm(question_embedding) *
-                np.linalg.norm(relation_embeddings[rel])))
-          print(rel)
-          print(score)
           assert score <=1 and score >=-1
-          #print(score)
-          #relation_map[rel] = relation_map[rel] * score
           relation_map[rel] = relation_map[rel] * np.power(score, self.EXPONENT)
       adj_mat = sum(relation_map.values()) / len(relation_map)
       #print(np.isnan(adj_mat.toarray()))
