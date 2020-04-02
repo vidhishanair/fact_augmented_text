@@ -37,6 +37,10 @@ dim = 300
 apr_obj = ApproximatePageRank(mode='train', task_id=FLAGS.task_id,
                               shard_id=FLAGS.shard_id)
 
+def has_long_answer(a):
+    return (a["long_answer"]["start_token"] >= 0 and
+            a["long_answer"]["end_token"] >= 0)
+
 def get_first_annotation_answer_entities(e):
     """Returns the first short or long answer in the example.
 
