@@ -47,7 +47,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
     count = 0
     for line in fp:
         count += 1
-        if count == 10:
+        if count == 100:
             break
         data = json.loads(line)
         q_id, question_text = data["example_id"], data["question_text"]
@@ -59,7 +59,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
                     np.linalg.norm(relation_emb))
             rel_name = relations[str(rel2id[rel_id])]['name']
             scores.append((rel_name, score))
-        sorted_scores = sorted(scores, key=lambda x: x[1], reverse=True)
+        sorted_scores = sorted(scores, key=lambda x: x[1], reverse=True)[0:20]
         print(question_text)
         print(sorted_scores)
         wp.write(str(q_id) + "\t" + question_text + "\t" + str(sorted_scores) + "\n")

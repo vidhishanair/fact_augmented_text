@@ -7,6 +7,7 @@ from tqdm import tqdm
 import tensorflow as tf
 import gzip
 from fat.fat_bert_nq import nq_data_utils
+import nltk
 from nltk.corpus import stopwords as SW
 
 flags = tf.flags
