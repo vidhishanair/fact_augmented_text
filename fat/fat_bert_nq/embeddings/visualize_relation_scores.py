@@ -85,6 +85,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(FLAGS.relations_file, 'rb')) as op4:
     obj = json.load(op4)
     op4.close()
     relations = obj['r']
+    entities = obj['e']
     # for rel_id, val in relations.items():
     #     rel_name = val['name']
     #     rel = id2rel[rel_id]
@@ -128,6 +129,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
             obj_id = row[ii]
             subj_id = question_entity_ids[col[ii]]
             rel_id = apr_obj.data.rel_dict[(subj_id, obj_id)]
+            print(entities[str(obj_id)]['name'])
             rel_name = relations[str(rel_id)]['name']
             qrels.append(rel_name)
         qrels = list(set(qrels))
