@@ -77,7 +77,7 @@ entity_names = dict()
 entity_names['e'] = dict()
 entity_names['r'] = dict()
 file_names = apr_obj.data.get_file_names(full_wiki=True, files_dir=FLAGS.apr_files_dir)
-for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in apr_obj.data.get_next_fact(file_names, full_wiki=True, sub_entities=k_hop_entities, sub_facts=None):
+for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in apr_obj.data.get_next_fact(file_names, full_wiki=True, sub_entities=None, sub_facts=None):
           #print(((subj, subj_name), (rel, rel_name), (obj, obj_name)))
           if subj not in ent2id:
             ent2id[subj] = len(ent2id)
@@ -154,8 +154,8 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
         #    break
         data = json.loads(line)
         q_id, question_text = data["example_id"], data["question_text"]
-        #if q_id != 8085171419767494900:
-        #    continue
+        if q_id != 8085171419767494900:
+           continue
         #print(question_text)
         question_entity_map = data["question_entity_map"]
 
@@ -174,10 +174,10 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
                     np.linalg.norm(question_emb) *
                     np.linalg.norm(relation_emb))
             if rel_id in apr_obj.data.rel2id:
-                print('here')
+                # print('here')
                 rel_name = apr_obj.data.entity_names['r'][str(apr_obj.data.rel2id[str(rel_id)])]['name']
             else:
-                print(rel_id)
+                # print(rel_id)
                 continue
             scores.append((rel_name, score))
         sorted_scores = sorted(scores, key=lambda x: x[1], reverse=True)
@@ -194,7 +194,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
             subj_id = question_entity_ids[col[ii]]
             rel_id = apr_obj.data.rel_dict[(subj_id, obj_id)]
             rel_name = apr_obj.data.entity_names['r'][str(rel_id)]['name']
-            #print(apr_obj.data.entity_names['e'][str(subj_id)]['name'], rel_name, apr_obj.data.entity_names['e'][str(obj_id)]['name'])
+            print(apr_obj.data.entity_names['e'][str(subj_id)]['name'], rel_name, apr_obj.data.entity_names['e'][str(obj_id)]['name'])
             #print(entities[str(obj_id)]['name'], rel_name)
             qrels.append(rel_name)
         qrels = list(set(qrels))
@@ -207,6 +207,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
             str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
             for x in facts
         ])
+        exit()
         if len(facts) > 0:
             wp.write(str(q_id) + "\t" + question_text + "\t" + question_entity_names
                      + "\t" + str(qrels) + "\t" + str(nl_facts) + "\t"
