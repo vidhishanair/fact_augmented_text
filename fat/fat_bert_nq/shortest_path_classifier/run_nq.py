@@ -1029,7 +1029,7 @@ def main(_):
         all_results = []
         loss = []
         metrics_counter = {'count': 0, 'correct': 0, '0_count': 0, '0_correct': 0, '1_count': 0, '1_correct': 0,
-                   '3_count': 0, '3_correct': 0, '4_count': 0, '4_correct': 0}
+                   '2_count': 0, '2_correct': 0, '3_count': 0, '3_correct': 0}
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
