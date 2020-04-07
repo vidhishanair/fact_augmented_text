@@ -757,14 +757,14 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
                 scaffold_fn=scaffold_fn)
 
         elif mode == tf.estimator.ModeKeys.PREDICT:
-            pred_label = sorted(
-                enumerate(answer_type_logits, 1), key=lambda x: x[1], reverse=True)[0]
+            # pred_label = sorted(
+            #     enumerate(answer_type_logits, 1), key=lambda x: x[1], reverse=True)[0]
             predictions = {
                 "unique_ids": unique_ids,
                 "answer_type_logits": answer_type_logits,
                 "input_ids": input_ids,
-                "predicted_label": pred_label[0],
-                "predicted_label_score": pred_label[1],
+                # "predicted_label": pred_label[0],
+                # "predicted_label_score": pred_label[1],
                 "answer_label": answer_label
                 # "loss": total_loss,
             }
@@ -1230,7 +1230,7 @@ class ScoreSummary(object):
 #   return nq_pred_dict
 
 def format_and_write_result(result, tokenizer, output_fp):
-    input_ids = result["input_ids"].int64_list.value
+    input_ids = result["input_ids"]
     input_ids = map(int, input_ids)
     question = []
     facts = []
@@ -1253,9 +1253,12 @@ def format_and_write_result(result, tokenizer, output_fp):
             print('didnt tokenize')
     question = " ".join(question).replace(" ##", "")
     facts = " ".join(facts).replace(" ##", "")
-    predicted_label = result["predicted_label"].int64_list.value[0]
+    answer_type_logits = result["answer_type_logits"]
+    predicted_label = int(sorted(
+        enumerate(answer_type_logits, 1), key=lambda x: x[1], reverse=True)[0])
+    # predicted_label = pred_label
     predicted_label_text = AnswerType(predicted_label).name
-    answer_label = result["answer_label"].int64_list.value[0]
+    answer_label = int(result["answer_label"])
     answer_label_text = AnswerType(answer_label).name
     output_fp.write(question + "\t" + facts + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
