@@ -79,6 +79,12 @@ flags.DEFINE_string(
 
 flags.DEFINE_string("predict_files", "", "Eval data")
 
+flags.DEFINE_string("train_data_file", "", "Train data")
+flags.DEFINE_string("train_output_file", "", "Train output data")
+
+flags.DEFINE_string("dev_data_file", "", "Train data")
+flags.DEFINE_string("dev_output_file", "", "Train output data")
+
 flags.DEFINE_string("input_data_dir", "", "input_data_dir")
 
 flags.DEFINE_string("output_data_dir", " ", "output_data_dir")
@@ -157,11 +163,10 @@ def main(_):
           print("Examples processed: %d", examples_processed)
 
     _ = run_nq.convert_examples_to_features(
-        examples=eval_examples,
+        example=eval_examples,
         tokenizer=tokenizer,
         is_training=False,
-        output_fn=append_feature,
-        pretrain_file=pretrain_file)
+        output_fn=append_feature)
     eval_writer.close()
 
   # For eval - Fianlly merge all shards into 1
