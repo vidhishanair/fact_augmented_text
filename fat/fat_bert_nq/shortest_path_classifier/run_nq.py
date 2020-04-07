@@ -912,7 +912,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     output_fp.write(question + "\t" + facts + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
-    return predicted_label, answer_label, is_correct
+    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct
 
 
 def validate_flags_or_throw(bert_config):
@@ -1028,23 +1028,31 @@ def main(_):
         # If running eval on the TPU, you will need to specify the number of steps.
         all_results = []
         loss = []
-        metrics_counter = {'count': 0, 'correct': 0, '0_count': 0, '0_correct': 0, '1_count': 0, '1_correct': 0,
-                   '2_count': 0, '2_correct': 0, '3_count': 0, '3_correct': 0}
+        metrics_counter = {'count': 0, 'correct': 0,
+                           'Relevant_Necessary_and_Sufficient_count': 0, 'Relevant_Necessary_and_Sufficient_correct': 0,
+                           'Relevant_but_not_Necessary_and_Not_Sufficient_count': 0, 'Relevant_but_not_Necessary_and_Not_Sufficient_correct': 0,
+                            'Relevant_and_Necessary_but_Not_Sufficient_count': 0, 'Relevant_and_Necessary_but_Not_Sufficient_correct': 0,
+                           'Irrelevant_count': 0, 'Irrelevant_correct': 0}
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
                 tf.logging.info("Processing example: %d" % (len(all_results)))
-            predicted_label, answer_label, is_correct = format_and_write_result(result, tokenizer, output_fp)
-            metrics_counter[str(answer_label)+"_count"] += 1
+            predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct = format_and_write_result(result, tokenizer, output_fp)
+            metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             if is_correct:
-                metrics_counter[str(answer_label)+"_correct"] += 1
+                metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
         metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
-                   "0_accuracy": metrics_counter['0_correct']/float(metrics_counter['0_count']),
-                   "1_accuracy": metrics_counter['1_correct']/float(metrics_counter['1_count']),
-                   "2_accuracy": metrics_counter['2_correct']/float(metrics_counter['2_count']),
-                   "3_accuracy": metrics_counter['3_correct']/float(metrics_counter['3_count'])
+                   "num_examples": metrics_counter['count'],
+                   "Relevant_Necessary_and_Sufficient_accuracy": metrics_counter['Relevant_Necessary_and_Sufficient_correct']/float(metrics_counter['Relevant_Necessary_and_Sufficient_count']),
+                   "Relevant_Necessary_and_Sufficient_num_examples": metrics_counter['Relevant_Necessary_and_Sufficient_count'],
+                   "Relevant_but_not_Necessary_and_Not_Sufficient_accuracy": metrics_counter['Relevant_but_not_Necessary_and_Not_Sufficient_correct']/float(metrics_counter['Relevant_but_not_Necessary_and_Not_Sufficient_count']),
+                   "Relevant_but_not_Necessary_and_Not_Sufficient_num_examples": metrics_counter['Relevant_but_not_Necessary_and_Not_Sufficient_count'],
+                   "Relevant_and_Necessary_but_Not_Sufficient_accuracy": metrics_counter['Relevant_and_Necessary_but_Not_Sufficient_correct']/float(metrics_counter['Relevant_and_Necessary_but_Not_Sufficient_count']),
+                   "Relevant_and_Necessary_but_Not_Sufficient_num_examples": metrics_counter['Relevant_and_Necessary_but_Not_Sufficient_count'],
+                   "Irrelevant_accuracy": metrics_counter['Irrelevant_correct']/float(metrics_counter['Irrelevant_count']),
+                   "Irrelevant_num_examples": metrics_counter['Irrelevant_count'],
                    }
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
