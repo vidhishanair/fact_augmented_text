@@ -1255,7 +1255,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     facts = " ".join(facts).replace(" ##", "")
     answer_type_logits = result["answer_type_logits"]
     predicted_label = int(sorted(
-        enumerate(answer_type_logits, 1), key=lambda x: x[1], reverse=True)[0])
+        enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
     # predicted_label = pred_label
     predicted_label_text = AnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
