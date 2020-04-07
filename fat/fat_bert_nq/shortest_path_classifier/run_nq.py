@@ -328,15 +328,15 @@ def make_nq_answer(answer):
       of the answer is the long answer. If the answer type is UNKNOWN, the text of
       the answer is empty.
     """
-
+    answer = answer.strip()
     answer_type = None
-    if answer.lower() == 'Relevant Necessary and Sufficient':
+    if answer == 'Relevant Necessary and Sufficient':
         answer_type = AnswerType.Relevant_Necessary_and_Sufficient
-    elif answer.lower() == "Relevant but not Necessary and Not Sufficient":
+    elif answer == "Relevant but not Necessary and Not Sufficient":
         answer_type = AnswerType.Relevant_but_not_Necessary_and_Not_Sufficient
-    elif answer.lower() == "Relevant and Necessary but Not Sufficient":
+    elif answer == "Relevant and Necessary but Not Sufficient":
         answer_type = AnswerType.Relevant_and_Necessary_but_Not_Sufficient
-    elif answer.lower() == "Irrelevant":
+    elif answer == "Irrelevant":
         answer_type = AnswerType.Irrelevant
 
     return Answer(answer_type, text=answer)
@@ -359,14 +359,15 @@ def create_example_from_line(line):
     return example
 
 
-def convert_examples_to_features(example, tokenizer, is_training, output_fn, pretrain_file=None):
+def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pretrain_file=None):
     """Converts an NqExamples into InputFeatures."""
     # num_spans_to_ids = collections.defaultdict(list)
-    example_index = example.example_id
-    feature, stats = convert_single_example(example, tokenizer, is_training, pretrain_file)
-    feature.example_index = example_index
-    feature.unique_id = feature.example_index
-    output_fn(feature)
+    for example in examples:
+        example_index = example.example_id
+        feature, stats = convert_single_example(example, tokenizer, is_training, pretrain_file)
+        feature.example_index = int(example_index)
+        feature.unique_id = int(feature.example_index)
+        output_fn(feature)
 
 
 def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file=None, fixed_train_list=None):
@@ -432,7 +433,10 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     assert len(input_ids) == FLAGS.max_seq_length
     assert len(input_mask) == FLAGS.max_seq_length
     assert len(segment_ids) == FLAGS.max_seq_length
-
+    print(tokens)
+    print(example.path_relevance_annotation.text)
+    print(example.path_relevance_annotation.type)
+    print(example.path_relevance_annotation.type.value)
     feature = InputFeatures(
         unique_id=-1,
         example_index=-1,
@@ -495,8 +499,8 @@ class CreateTFExampleFn(object):
         """Coverts an NQ example in a list of serialized tf examples."""
         input_feature, stat_counts = convert_single_example(example, self.tokenizer,
                                                             self.is_training, pretrain_file, fixed_train_list)
-        input_feature.example_index = int(example["id"])
-        input_feature.unique_id = int(example["id"])
+        input_feature.example_index = int(example.example_id)
+        input_feature.unique_id = int(example.example_id)
 
         def create_int_feature(values):
             return tf.train.Feature(
@@ -557,6 +561,7 @@ def read_nq_examples(input_file, is_training):
     for path in input_paths:
         tf.logging.info("Reading: %s", path)
         with _open(path) as input_file:
+            l = input_file.readline()
             for line in input_file:
                 input_data.append(create_example_from_line(line))
 
@@ -860,7 +865,7 @@ class FeatureWriter(object):
         features["input_ids"] = create_int_feature(feature.input_ids)
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
-        features["answer_label"] = create_int_feature(feature.answer_label)
+        features["answer_label"] = create_int_feature([feature.answer_label])
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
         return tf_example
 
@@ -1269,10 +1274,6 @@ def validate_flags_or_throw(bert_config):
             raise ValueError("If `do_train` is True, then `train_num_precomputed` "
                              "must be specified.")
 
-    if FLAGS.do_predict:
-        if not FLAGS.predict_file:
-            raise ValueError(
-                "If `do_predict` is True, then `predict_file` must be specified.")
 
     if FLAGS.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(

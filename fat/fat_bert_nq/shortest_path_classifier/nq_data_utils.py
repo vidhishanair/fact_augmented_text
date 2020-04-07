@@ -39,5 +39,6 @@ def get_nq_filename(data_dir, mode, task, filetype):
 
 def get_nq_examples(input_file):
     with tf.gfile.Open(input_file, "r") as fp:
+        l = fp.readline()
         for line in fp:
             yield run_nq.create_example_from_line(line)

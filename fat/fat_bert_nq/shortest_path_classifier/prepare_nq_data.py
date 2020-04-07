@@ -163,7 +163,7 @@ def main(_):
           print("Examples processed: %d", examples_processed)
 
     _ = run_nq.convert_examples_to_features(
-        example=eval_examples,
+        examples=eval_examples,
         tokenizer=tokenizer,
         is_training=False,
         output_fn=append_feature)
