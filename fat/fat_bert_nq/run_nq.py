@@ -26,6 +26,7 @@ import json
 import os
 import random
 import re
+import itertools
 import time 
 
 import enum
@@ -856,6 +857,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
 
       if FLAGS.shuffle_shortest_path_facts:
           random.shuffle(facts)
+      #print(facts)
       if seperate_diff_paths:
           merged_facts = list(itertools.chain.from_iterable(facts))
       else:
@@ -1166,7 +1168,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                 # span_id = (example.example_id + doc_span_index)
                 if is_training and (FLAGS.include_unknowns < 0 or
                         random.random() > FLAGS.include_unknowns):
-                    print("How here")
+                    #print("How here")
                     continue
             else:
                 pass
@@ -1490,6 +1492,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         print('Dev example has no valid positive instances.')
         return [], None
     if FLAGS.create_fact_annotation_data :
+        #print('Here')
         aligned_facts, facts, num_hops, \
         question_entity_names, answer_entity_names, _ = get_related_facts(None, tok_to_textmap_index,
                                                                           example.entity_list,
@@ -1510,6 +1513,8 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                 end_token = a["short_answers"][-1]["end_token"]
                 sa_text = a["short_answers"][0]["text_answer"]
         # aligned_facts = list(set(aligned_facts))
+        #print(aligned_facts)
+        #print(facts)
         if aligned_facts != '':
             for path in facts:
                 nl_fact = " ".join([
@@ -1521,6 +1526,8 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                     + str(sa_text) + "\t"
                                     + str(answer_entity_names) + "\t"
                                     + nl_fact + "\n")
+                #print(facts)
+                #exit()
 
     return features, feature_stats
 
