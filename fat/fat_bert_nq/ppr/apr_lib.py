@@ -286,7 +286,7 @@ class ApproximatePageRank(object):
       return augmented_path
 
 
-  def get_shortest_path_facts(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None):
+  def get_shortest_path_facts(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None, seperate_diff_paths=False):
       """Get subgraph describing shortest path from question to answer.
 
       Args:
@@ -342,7 +342,10 @@ class ApproximatePageRank(object):
       freq_dict = {x: question_entity_ids.count(x) for x in question_entity_ids}
 
       extracted_paths, num_hops = csr_get_shortest_path(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict, k_hop=FLAGS.k_hop)
-      augmented_facts = self.get_augmented_facts(extracted_paths, self.data.entity_names)
+      if seperate_diff_paths:
+          augmented_facts = self.get_all_path_augmented_facts(extracted_paths, self.data.entity_names)
+      else:
+          augmented_facts = self.get_augmented_facts(extracted_paths, self.data.entity_names)
 
       if FLAGS.verbose_logging:
           print('Extracted facts: ')
