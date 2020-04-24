@@ -26,6 +26,7 @@ import json
 import os
 import random
 import re
+import itertools
 import time 
 
 import enum
@@ -812,7 +813,7 @@ def check_is_max_context(doc_spans, cur_span_index, position):
 def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
                       tokenizer, question_entity_map, answer=None, ner_entity_list=None,
                       all_doc_tokens=None, fp=None, override_shortest_path=False, use_passage_seeds=True,
-                      use_question_seeds=False):
+                      use_question_seeds=False, seperate_diff_paths=False):
   """For a given doc span, use seed entities, do APR, return related facts.
 
   Args:
@@ -843,7 +844,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
 
   num_hops = None
   if FLAGS.use_shortest_path_facts and not override_shortest_path:
-      facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp)
+      facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=seperate_diff_paths)
 
       if len(facts)>0 and FLAGS.add_random_question_facts_to_shortest_path:
             facts.extend(apr_obj.get_random_facts_of_question(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp))
@@ -856,15 +857,20 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
 
       if FLAGS.shuffle_shortest_path_facts:
           random.shuffle(facts)
+      #print(facts)
+      if seperate_diff_paths:
+          merged_facts = list(itertools.chain.from_iterable(facts))
+      else:
+          merged_facts = facts
       if FLAGS.use_entity_markers:
           nl_facts = " . ".join([
               "[unused0] " + str(x[0][0][1]) + " [unused1] " + str(x[1][0][1]) + " [unused0] " + str(x[0][1][1])
-              for x in facts
+              for x in merged_facts
           ])
       else:
           nl_facts = " . ".join([
               str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
-              for x in facts
+              for x in merged_facts
           ])
   else:
       # Adding this check since empty seeds generate random facts
@@ -1162,7 +1168,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                 # span_id = (example.example_id + doc_span_index)
                 if is_training and (FLAGS.include_unknowns < 0 or
                         random.random() > FLAGS.include_unknowns):
-                    print("How here")
+                    #print("How here")
                     continue
             else:
                 pass
@@ -1486,10 +1492,17 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         print('Dev example has no valid positive instances.')
         return [], None
     if FLAGS.create_fact_annotation_data :
-        aligned_facts, facts, num_hops, question_entity_names, answer_entity_names, _ = get_related_facts(None, tok_to_textmap_index,
-                                                                       example.entity_list, apr_obj,
-                                                                       tokenizer, example.question_entity_map[-1], example.answer,
-                                                                       example.ner_entity_list, example.doc_tokens, pretrain_file)
+        #print('Here')
+        aligned_facts, facts, num_hops, \
+        question_entity_names, answer_entity_names, _ = get_related_facts(None, tok_to_textmap_index,
+                                                                          example.entity_list,
+                                                                          apr_obj,
+                                                                          tokenizer,
+                                                                          example.question_entity_map[-1],
+                                                                          example.answer,
+                                                                          example.ner_entity_list,
+                                                                          example.doc_tokens, pretrain_file,
+                                                                          seperate_diff_paths=True)
         a = example.annotation
         la_text, sa_text = "", ""
         if a is not None:
@@ -1500,15 +1513,22 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                 end_token = a["short_answers"][-1]["end_token"]
                 sa_text = a["short_answers"][0]["text_answer"]
         # aligned_facts = list(set(aligned_facts))
+        #print(aligned_facts)
+        #print(facts)
         if aligned_facts != '':
-            pretrain_file.write(str(example.example_id)+"\t"
-                                    +" ".join(query_tokens).replace(" ##", "")+"\t"
-                                    +str(question_entity_names)+"\t"
-                                    +str(la_text)+"\t"
-                                    +str(sa_text)+"\t"
-                                    +str(answer_entity_names)+"\t"
-                                    +aligned_facts+"\n")
-                                    # +str(path)+"\n")
+            for path in facts:
+                nl_fact = " ".join([
+                    str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1]) for x in path])
+                pretrain_file.write(str(example.example_id) + "\t"
+                                    + " ".join(query_tokens).replace(" ##", "") + "\t"
+                                    + str(question_entity_names) + "\t"
+                                    + str(la_text) + "\t"
+                                    + str(sa_text) + "\t"
+                                    + str(answer_entity_names) + "\t"
+                                    + nl_fact + "\n")
+                #print(facts)
+                #exit()
+
     return features, feature_stats
 
 
