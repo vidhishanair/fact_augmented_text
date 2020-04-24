@@ -30,6 +30,7 @@ from __future__ import print_function
 import gzip
 import json
 import os
+import time
 # import sling
 # import sling.flags as flags
 # import sling.task.entity as entity
@@ -41,16 +42,18 @@ from google.cloud.language_v1 import enums
 # Calling these 'args' to avoid conflicts with sling flags
 args = tf.flags
 ARGS = args.FLAGS
-args.DEFINE_string("nq_dir", "/home/vbalacha/datasets/v1.0", "NQ data location")
+#args.DEFINE_string("nq_dir", "/home/vbalacha/datasets/v1.0", "NQ data location")
+args.DEFINE_string("nq_dir", "gs://fat_storage/sharded_nq/", "NQ data location")
 args.DEFINE_string("output_data_dir", "gs://fat_storage/google_ent_linked_nq/", "Location to write augmented data to")
 args.DEFINE_string("fb2wiki", "gs://fat_storage/freebase_wikidata_mappings/fb2wiki.json", "Location to write augmented data to")
-args.DEFINE_boolean("annotate_candidates", True, "Flag to annotate candidates")
-args.DEFINE_boolean("annotate_long_answers", True,
+args.DEFINE_boolean("annotate_candidates", False, "Flag to annotate candidates")
+args.DEFINE_boolean("annotate_long_answers", False,
                     "Flag to annotate long answer")
-args.DEFINE_boolean("annotate_short_answers", True,
+args.DEFINE_boolean("annotate_short_answers", False,
                     "Flag to annotate short answers")
 args.DEFINE_boolean("annotate_question", True, "Flag to annotate questions")
 
+client = language_v1.LanguageServiceClient()
 
 def sample_analyze_entities(text_content, fb2wiki):
     """
@@ -60,7 +63,7 @@ def sample_analyze_entities(text_content, fb2wiki):
       text_content The text content to analyze
     """
 
-    client = language_v1.LanguageServiceClient()
+    #client = language_v1.LanguageServiceClient()
 
     # text_content = 'California is a state.'
 
@@ -79,10 +82,10 @@ def sample_analyze_entities(text_content, fb2wiki):
     encoding_type = enums.EncodingType.UTF8
 
     response = client.analyze_entities(document, encoding_type=encoding_type)
-
+    #print(text_content)
     # Loop through entitites returned from the API
     for entity in response.entities:
-        # print(u"Representative name for the entity: {}".format(entity.name))
+        #print(u"Representative name for the entity: {}".format(entity.name))
         # Get entity type, e.g. PERSON, LOCATION, ADDRESS, NUMBER, et al
         # print(u"Entity type: {}".format(enums.Entity.Type(entity.type).name))
         # Get the salience score associated with the entity in the [0, 1.0] range
@@ -91,27 +94,32 @@ def sample_analyze_entities(text_content, fb2wiki):
         # the metadata is a Wikipedia URL (wikipedia_url) and Knowledge Graph MID (mid).
         # Some entity types may have additional metadata, e.g. ADDRESS entities
         # may have metadata for the address street_name, postal_code, et al.
-        mid = entity.metadata['mid'].strip("/").replact('/','.')
-        wikiids = fb2wiki[mid]
-        entities.extend(wikiids)
-        # for metadata_name, metadata_value in entity.metadata.items():
-        #     print(u"{}: {}".format(metadata_name, metadata_value))
+        if entity.metadata['mid'] != '':
+            mid = entity.metadata['mid'].strip("/").replace('/','.')
+            if mid in fb2wiki:
+                wikiids = fb2wiki[mid]
+                entities.extend(wikiids)
+                #print(mid, wikiids)
+                # for metadata_name, metadata_value in entity.metadata.items():
+                #     print(u"{}: {}".format(metadata_name, metadata_value))
 
-        # Loop over the mentions of this entity in the input document.
-        # The API currently supports proper noun mentions.
-        for mention in entity.mentions:
-            # print(u"Mention text: {}".format(mention.text.content))
-            # # Get the mention type, e.g. PROPER for proper noun
-            # print(
-            #     u"Mention type: {}".format(enums.EntityMention.Type(mention.type).name)
-            # )
-            mention_text = mention.text.content
-            begin = mention.text.beginOffset
-            end = mention.text.beginOffset + len(mention_text)
-            if begin in entity_map:
-                entity_map[begin].extend([(end, wid) for wid in wikiids])
-            else:
-                entity_map[begin] = [(end, wid) for wid in wikiids]
+                # Loop over the mentions of this entity in the input document.
+                # The API currently supports proper noun mentions.
+                for mention in entity.mentions:
+                    # print(u"Mention text: {}".format(mention.text.content))
+                    # # Get the mention type, e.g. PROPER for proper noun
+                    # print(
+                    #     u"Mention type: {}".format(enums.EntityMention.Type(mention.type).name)
+                    # )
+                    #print(mention.text)
+                    mention_text = mention.text.content
+                    begin = mention.text.begin_offset
+                    end = mention.text.begin_offset + len(mention_text)
+                    #print(mention_text, begin, end)
+                    if begin in entity_map:
+                        entity_map[begin].extend([(end, wid) for wid in wikiids])
+                    else:
+                        entity_map[begin] = [(end, wid) for wid in wikiids]
 
 
     # Get the language of the text, which will be the same as
@@ -186,9 +194,11 @@ def entity_link_nq(nq_data):
                     nq_data[i]["annotations"][idx]["long_answer"][
                         "entity_map"] = entity_map
         if ARGS.annotate_question:
-            question_text = str(nq_data[i]["question_text"])
+            print(i, nq_data[i]["question_text"])
+            question_text = str(nq_data[i]["question_text"].encode('utf-8'))
             entities, entity_map = sample_analyze_entities(question_text, fb2wiki)
             nq_data[i]['question_entity_map'] = entity_map
+        time.sleep(3)
     return nq_data
 
 def extract_nq_data(nq_file):
@@ -220,8 +230,9 @@ def get_examples(data_dir, mode, task_id, shard_id):
     """Reads NQ data, does sling entity linking and returns augmented data."""
     file_path = get_full_filename(data_dir, mode, task_id, shard_id)
     tf.logging.info("Reading file: %s" % (file_path))
-    if not os.path.exists(file_path):
-        return None
+    # if not os.path.exists(file_path):
+    #     tf.logging.info("Path doesn't exist")
+    #     return None
     nq_data = extract_nq_data(file_path)
     tf.logging.info("NQ data Size: " + str(len(nq_data.keys())))
 
@@ -232,8 +243,10 @@ def get_examples(data_dir, mode, task_id, shard_id):
 
 def main(_):
     # workflow.startup()
-    max_tasks = {"old_train": 50, "train": 25, "dev": 5}
-    max_shards = {"train": 7, "dev": 17}
+    # max_tasks = {"train": 50, "dev": 5}
+    # max_shards = {"train": 7, "dev": 17}
+    max_tasks = {"train": 1, "dev": 5}
+    max_shards = {"train": 1, "dev": 17}
     for mode in ["train"]:
         # Parse all shards in each mode
         # Currently sequentially, can be parallelized later
@@ -253,5 +266,4 @@ def main(_):
 if __name__ == "__main__":
     # This will fail if non-sling CMDLine Args are given.
     # Will modify sling separately to parse known args
-    flags.parse()
     tf.app.run()
