@@ -405,6 +405,35 @@ def csr_topk_fact_extractor(adj_mat, rel_dict, freq_dict, entity_names,
                   (rel_id, rel_name), score))
   return facts
 
+def csr_get_question_links(question_seeds, adj_mat, answer_seeds, rel_dict):
+  """Return list of shortest paths between question and answer seeds.
+
+  Args:
+    question_seeds: A list of seed entity ids
+    adj_mat: A sparse matrix of size E x E whose rows sum to one.
+    answer_seeds: A list of seed entity ids
+
+  Returns:
+      paths: A list of shortest paths between question and answer entities
+  """
+
+  seeds = question_seeds
+  tmp_num_hops = 0
+  tmp_num_hops += 1
+  # Slicing adjacency matrix to subgraph of all extracted entities
+  submat = adj_mat[:, seeds]
+  # Extracting non-zero entity pairs
+  row, col = submat.nonzero()
+  facts = []
+  relations = []
+  for ii in range(row.shape[0]):
+    obj_id = row[ii]
+    subj_id = seeds[col[ii]]
+    rel = rel_dict[(subj_id, obj_id)]
+    relations.append(rel)
+    facts.append((subj_id, rel, subj_id))
+  return facts, relations
+
 
 # def csr_topk_fact_extractor(adj_mat, rel_dict, entity_names):
 #     """Return random facts.
