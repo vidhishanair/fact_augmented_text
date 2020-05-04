@@ -38,13 +38,14 @@ import time
 import tensorflow as tf
 from google.cloud import language_v1
 from google.cloud.language_v1 import enums
+from google.cloud import storage
 
 # Calling these 'args' to avoid conflicts with sling flags
 args = tf.flags
 ARGS = args.FLAGS
 #args.DEFINE_string("nq_dir", "/home/vbalacha/datasets/v1.0", "NQ data location")
-args.DEFINE_string("nq_dir", "gs://fat_storage/sharded_nq/", "NQ data location")
-args.DEFINE_string("output_data_dir", "gs://fat_storage/google_ent_linked_nq/", "Location to write augmented data to")
+args.DEFINE_string("nq_dir", "gs://fat_storage/datasets/ent_linked_nq_new", "NQ data location")
+args.DEFINE_string("output_data_dir", "gs://fat_storage/datasets/google_ent_linked_nq/", "Location to write augmented data to")
 args.DEFINE_string("fb2wiki", "gs://fat_storage/freebase_wikidata_mappings/fb2wiki.json", "Location to write augmented data to")
 args.DEFINE_boolean("annotate_candidates", False, "Flag to annotate candidates")
 args.DEFINE_boolean("annotate_long_answers", False,
@@ -54,6 +55,8 @@ args.DEFINE_boolean("annotate_short_answers", False,
 args.DEFINE_boolean("annotate_question", True, "Flag to annotate questions")
 
 client = language_v1.LanguageServiceClient()
+storage_client = storage.Client()
+storage_bucket = storage_client.get_bucket("fat_storage")
 
 def sample_analyze_entities(text_content, fb2wiki):
     """
@@ -165,9 +168,9 @@ def entity_link_nq(nq_data):
             for idx, la_cand in enumerate(nq_data[i]["long_answer_candidates"]):
                 answer, answer_map, entities, entity_map = extract_and_link_text(la_cand, tokens, fb2wiki)
                 if answer:
-                    nq_data[i]["long_answer_candidates"][idx]["text_answer"] = answer
-                    nq_data[i]["long_answer_candidates"][idx]["answer_map"] = answer_map
-                    nq_data[i]["long_answer_candidates"][idx]["entity_map"] = entity_map
+                    #nq_data[i]["long_answer_candidates"][idx]["text_answer"] = answer
+                    #nq_data[i]["long_answer_candidates"][idx]["answer_map"] = answer_map
+                    nq_data[i]["long_answer_candidates"][idx]["google_entity_map"] = entity_map
         if ARGS.annotate_short_answers:
             for idx, ann in enumerate(nq_data[i]["annotations"]):
                 short_ans = ann["short_answers"]
@@ -177,27 +180,27 @@ def entity_link_nq(nq_data):
                     ans = short_ans[sid]
                     answer, answer_map, entities, entity_map = extract_and_link_text(ans, tokens, fb2wiki)
                     if answer:
+                        #nq_data[i]["annotations"][idx]["short_answers"][sid][
+                        #    "text_answer"] = answer
+                        #nq_data[i]["annotations"][idx]["short_answers"][sid][
+                        #    "answer_map"] = answer_map
                         nq_data[i]["annotations"][idx]["short_answers"][sid][
-                            "text_answer"] = answer
-                        nq_data[i]["annotations"][idx]["short_answers"][sid][
-                            "answer_map"] = answer_map
-                        nq_data[i]["annotations"][idx]["short_answers"][sid][
-                            "entity_map"] = entity_map
+                            "google_entity_map"] = entity_map
         if ARGS.annotate_long_answers:
             for idx, ann in enumerate(nq_data[i]["annotations"]):
                 long_ans = ann["long_answer"]
                 answer, answer_map, entities, entity_map = extract_and_link_text(long_ans, tokens, fb2wiki)
                 if answer:
-                    nq_data[i]["annotations"][idx]["long_answer"]["text_answer"] = answer
+                    #nq_data[i]["annotations"][idx]["long_answer"]["text_answer"] = answer
+                    #nq_data[i]["annotations"][idx]["long_answer"][
+                    #    "answer_map"] = answer_map
                     nq_data[i]["annotations"][idx]["long_answer"][
-                        "answer_map"] = answer_map
-                    nq_data[i]["annotations"][idx]["long_answer"][
-                        "entity_map"] = entity_map
+                        "google_entity_map"] = entity_map
         if ARGS.annotate_question:
             print(i, nq_data[i]["question_text"])
             question_text = str(nq_data[i]["question_text"].encode('utf-8'))
             entities, entity_map = sample_analyze_entities(question_text, fb2wiki)
-            nq_data[i]['question_entity_map'] = entity_map
+            nq_data[i]['google_question_entity_map'] = entity_map
         time.sleep(3)
     return nq_data
 
@@ -229,10 +232,15 @@ def get_full_filename(data_dir, mode, task_id, shard_id):
 def get_examples(data_dir, mode, task_id, shard_id):
     """Reads NQ data, does sling entity linking and returns augmented data."""
     file_path = get_full_filename(data_dir, mode, task_id, shard_id)
+    relative_path = "/".join(file_path.split("/")[3:])
     tf.logging.info("Reading file: %s" % (file_path))
-    # if not os.path.exists(file_path):
-    #     tf.logging.info("Path doesn't exist")
-    #     return None
+    print(relative_path)
+    #client = storage.Client(projectname, credentials=credentials)
+    #bucket = client.get_bucket(bucket_name)
+    blob = storage_bucket.blob(relative_path)
+    if not blob.exists():
+        tf.logging.info("Path doesn't exist")
+        return None
     nq_data = extract_nq_data(file_path)
     tf.logging.info("NQ data Size: " + str(len(nq_data.keys())))
 
@@ -243,14 +251,14 @@ def get_examples(data_dir, mode, task_id, shard_id):
 
 def main(_):
     # workflow.startup()
-    # max_tasks = {"train": 50, "dev": 5}
-    # max_shards = {"train": 7, "dev": 17}
-    max_tasks = {"train": 1, "dev": 5}
-    max_shards = {"train": 1, "dev": 17}
+    max_tasks = {"train": 50, "dev": 5}
+    max_shards = {"train": 7, "dev": 17}
+    #max_tasks = {"train": 1, "dev": 5}
+    #max_shards = {"train": 1, "dev": 17}
     for mode in ["train"]:
         # Parse all shards in each mode
         # Currently sequentially, can be parallelized later
-        for task_id in range(0, max_tasks[mode]):
+        for task_id in range(1, max_tasks[mode]):
             for shard_id in range(0, max_shards[mode]):
                 nq_augmented_data = get_examples(ARGS.nq_dir, mode, task_id, shard_id)
                 if nq_augmented_data is None:
