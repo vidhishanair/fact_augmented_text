@@ -24,7 +24,7 @@ import os
 
 import tensorflow as tf
 
-from fat.fat_bert_nq.shortest_path_classifier import run_nq
+from fat.fat_bert_nq.relation_classifiers import run_nq
 
 
 def get_sharded_filename(data_dir, mode, task, split, filetype):
@@ -37,8 +37,8 @@ def get_nq_filename(data_dir, mode, task, filetype):
                       "%s/nq-%s-%02d.%s" % (mode, mode, task, filetype))
 
 
-def get_nq_examples(input_file):
-    with tf.gfile.Open(input_file, "r") as fp:
-        l = fp.readline()
-        for line in fp:
-            yield run_nq.create_example_from_line(line)
+def get_nq_examples(input_jsonl_pattern):
+    for input_path in tf.gfile.Glob(input_jsonl_pattern):
+        with gzip.GzipFile(fileobj=tf.gfile.Open(input_path, "rb")) as input_file:
+            for line in input_file:
+                yield run_nq.create_example_from_jsonl(line)

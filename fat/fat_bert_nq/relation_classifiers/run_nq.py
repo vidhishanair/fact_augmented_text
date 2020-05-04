@@ -40,7 +40,7 @@ import tensorflow as tf
 
 import spacy
 
-from fat.fat_bert_nq.ppr.shortest_path_lib import ShortestPath
+#from fat.fat_bert_nq.ppr.shortest_path_lib import ShortestPath
 
 nlp = spacy.load("en_core_web_lg")
 
@@ -901,6 +901,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     # QUERY
     query_tokens = []
     query_tokens.append("[Q]")
+    print(example.questions[-1])
     query_tokens.extend(tokenize(tokenizer, example.questions[-1]))
     if len(query_tokens) > FLAGS.max_query_length:
         query_tokens = query_tokens[-FLAGS.max_query_length:]
@@ -924,6 +925,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     question_linked_facts, question_relations = get_related_facts(apr_obj, example.question_entity_map[-1], example.answer, pretrain_file)
     shortest_path_fact_count = float(len(shortest_path_aligned_facts))
     sp_relations = set(sp_relations)
+    print("positives: "+str(list(sp_relations)))
     for relation in list(sp_relations):
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
@@ -963,6 +965,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     positive_counts = len(sp_relations)
     if is_training:
         rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
+        print("rw negatives: "+str(list(rw_relations)))
         for relation in rw_relations:
             current_input_tokens = tokens.copy()
             current_segments_ids = segment_ids.copy()
@@ -1000,6 +1003,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             features.append(feature)
         question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
         question_relations = random.sample(question_relations, positive_counts//2)
+    print("question negatives: "+str(list(question_relations)))
     for relation in question_relations:
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
@@ -1035,7 +1039,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             answer_entity_ids=answer_entity_ids,
         )
         features.append(feature)
-
+    exit()
     return features, feature_stats
 
 
