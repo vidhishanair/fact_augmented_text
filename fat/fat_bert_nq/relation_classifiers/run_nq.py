@@ -1086,27 +1086,37 @@ class CreateTFExampleFn(object):
         self.tokenizer = tokenization.FullTokenizer(
             vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
         mode = 'train' if is_training else 'dev'
+        self.apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
+                                           shard_id=FLAGS.shard_split_id)
 
     def process(self, example, pretrain_file=None, fixed_train_list=None):
         """Coverts an NQ example in a list of serialized tf examples."""
-        input_feature, stat_counts = convert_single_example(example, self.tokenizer,
-                                                            self.is_training, pretrain_file, fixed_train_list)
-        input_feature.example_index = int(example.example_id)
-        input_feature.unique_id = int(example.example_id)
+        nq_examples = read_nq_entry(example, self.is_training)
+        input_features = []
+        stats_counter = []
+        for nq_example in nq_examples:
+            features, stat_counts = convert_single_example(nq_example, self.tokenizer, self.apr_obj,
+                                                           self.is_training, pretrain_file, fixed_train_list)
+            input_features.extend(features)
+            stats_counter.extend(stat_counts)
 
-        def create_int_feature(values):
-            return tf.train.Feature(
-                int64_list=tf.train.Int64List(value=list(values)))
+        for idx, input_feature in enumerate(input_features):
+            input_feature.example_index = int(example["id"])
+            input_feature.unique_id = (input_feature.example_index + idx)
 
-        features = collections.OrderedDict()
-        features["unique_ids"] = create_int_feature([input_feature.unique_id])
-        features["input_ids"] = create_int_feature(input_feature.input_ids)
-        features["input_mask"] = create_int_feature(input_feature.input_mask)
-        features["segment_ids"] = create_int_feature(input_feature.segment_ids)
-        features["answer_label"] = create_int_feature([input_feature.answer_label])
+            def create_int_feature(values):
+                return tf.train.Feature(
+                    int64_list=tf.train.Int64List(value=list(values)))
 
-        return tf.train.Example(features=tf.train.Features(
-            feature=features)).SerializeToString(), stat_counts
+            features = collections.OrderedDict()
+            features["unique_ids"] = create_int_feature([input_feature.unique_id])
+            features["input_ids"] = create_int_feature(input_feature.input_ids)
+            features["input_mask"] = create_int_feature(input_feature.input_mask)
+            features["segment_ids"] = create_int_feature(input_feature.segment_ids)
+            features["answer_label"] = create_int_feature([input_feature.answer_label])
+
+            yield tf.train.Example(features=tf.train.Features(
+                feature=features)).SerializeToString(), stats_counter[idx]
 
 
 class InputFeatures(object):
@@ -1157,12 +1167,13 @@ def read_nq_examples(input_file, is_training):
     for path in input_paths:
         tf.logging.info("Reading: %s", path)
         with _open(path) as input_file:
-            l = input_file.readline()
             for line in input_file:
-                input_data.append(create_example_from_line(line))
+                input_data.append(create_example_from_jsonl(line))
 
-    return input_data
-
+    examples = []
+    for entry in input_data:
+        examples.extend(read_nq_entry(entry, is_training))
+    return examples
 
 def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
                  use_one_hot_embeddings):
