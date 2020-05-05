@@ -187,7 +187,9 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_bool(
     "use_google_entities", False,
     "Flag to use google entities")
-
+flags.DEFINE_integer(
+            "k_hop", 2,
+                "Num of hops for shortest path query")
 
 
 flags.DEFINE_integer("num_facts_limit", -1,
@@ -853,18 +855,24 @@ def get_related_facts(apr_obj, question_entity_map, answer=None, fp=None):
     num_hops = None
     facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=False)
 
-    random_walk_facts = apr_obj.get_facts(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
-    sorted_facts = sorted(random_walk_facts, key=lambda tup: tup[1][1], reverse=True)
+    # random_walk_facts = apr_obj.get_facts(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
+    # sorted_facts = sorted(random_walk_facts, key=lambda tup: tup[1][1], reverse=True)
 
-    question_linked_facts, question_relations = apr_obj.get_question_links(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
-
+    question_linked_facts, question_relations = apr_obj.get_question_links(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=False)
     nl_facts = " . ".join([
                     str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
                     for x in facts
                 ])
+
+    # rw_nl_facts = " . ".join([
+    #                 str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
+    #                 for x in sorted_facts[0:20]
+    #             ])
     sp_relations = [str(x[1][0][1]) for x in facts]
-    rw_relations = [str(x[1][0][1]) for x in sorted_facts]
-    return nl_facts, facts, num_hops, sp_relations, rw_relations, \
+    #rw_relations = [str(x[1][0][1]) for x in sorted_facts]
+    rw_nl_facts = ""
+    rw_relations = []
+    return nl_facts, facts, num_hops, sp_relations, rw_nl_facts, rw_relations, \
            question_entity_names, question_entity_ids, answer_entity_names, \
            answer_entity_ids, question_linked_facts, question_relations
 
@@ -901,7 +909,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     # QUERY
     query_tokens = []
     query_tokens.append("[Q]")
-    print(example.questions[-1])
+    #print(example.questions[-1])
     query_tokens.extend(tokenize(tokenizer, example.questions[-1]))
     if len(query_tokens) > FLAGS.max_query_length:
         query_tokens = query_tokens[-FLAGS.max_query_length:]
@@ -920,22 +928,27 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     segment_ids.append(0)
 
     shortest_path_aligned_facts, facts, num_hops, \
-    sp_relations, rw_relations, question_entity_names, question_entity_ids,\
+    sp_relations, rw_facts, rw_relations, question_entity_names, question_entity_ids,\
     answer_entity_names, answer_entity_ids, \
     question_linked_facts, question_relations = get_related_facts(apr_obj, example.question_entity_map[-1], example.answer, pretrain_file)
     shortest_path_fact_count = float(len(shortest_path_aligned_facts))
+    if len(facts)==0:
+        return [], []
     sp_relations = set(sp_relations)
-    print("positives: "+str(list(sp_relations)))
+    print(example.questions[-1])
+    # print("positives: "+str(list(sp_relations)))
+    # print(question_entity_names)
+    # print(rw_facts)
     for relation in list(sp_relations):
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
         for token in relation.split():
             sub_tokens = tokenize(tokenizer, token)
-            current_input_tokens.append(sub_tokens)
+            current_input_tokens.extend(sub_tokens)
             current_segments_ids.append(1)
         current_input_tokens.append("[SEP]")
         current_segments_ids.append(1)
-        input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        input_ids = tokenizer.convert_tokens_to_ids(current_input_tokens)
         input_mask = [1] * len(input_ids)
         # input_mask = [0 if item == 0 else 1 for item in input_ids]
         # Zero-pad up to the sequence length.
@@ -952,7 +965,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             input_mask=input_mask,
             segment_ids=segment_ids,
             answer_label=BinarySPAnswerType.In_SP,
-            answer_text=BinarySPAnswerType.In_SP.type.value,
+            answer_text="In_SP",
             relation=relation,
             num_hops=num_hops,
             question_entities=question_entity_names,
@@ -962,58 +975,59 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         )
         features.append(feature)
 
-    positive_counts = len(sp_relations)
-    if is_training:
-        rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
-        print("rw negatives: "+str(list(rw_relations)))
-        for relation in rw_relations:
-            current_input_tokens = tokens.copy()
-            current_segments_ids = segment_ids.copy()
-            for token in relation.split():
-                sub_tokens = tokenize(tokenizer, token)
-                current_input_tokens.append(sub_tokens)
-                current_segments_ids.append(1)
-            current_input_tokens.append("[SEP]")
-            current_segments_ids.append(1)
-            input_ids = tokenizer.convert_tokens_to_ids(tokens)
-            input_mask = [1] * len(input_ids)
-            # input_mask = [0 if item == 0 else 1 for item in input_ids]
-            # Zero-pad up to the sequence length.
-            padding = [0] * (FLAGS.max_seq_length - len(input_ids))
-            input_ids.extend(padding)
-            input_mask.extend(padding)
-            segment_ids.extend([1 for x in padding])
+    positive_counts = len(sp_relations)+1
+    # if is_training:
+    #     rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
+    #     print("rw negatives: "+str(list(rw_relations)))
+    #     for relation in rw_relations:
+    #         current_input_tokens = tokens.copy()
+    #         current_segments_ids = segment_ids.copy()
+    #         for token in relation.split():
+    #             sub_tokens = tokenize(tokenizer, token)
+    #             current_input_tokens.append(sub_tokens)
+    #             current_segments_ids.append(1)
+    #         current_input_tokens.append("[SEP]")
+    #         current_segments_ids.append(1)
+    #         input_ids = tokenizer.convert_tokens_to_ids(tokens)
+    #         input_mask = [1] * len(input_ids)
+    #         # input_mask = [0 if item == 0 else 1 for item in input_ids]
+    #         # Zero-pad up to the sequence length.
+    #         padding = [0] * (FLAGS.max_seq_length - len(input_ids))
+    #         input_ids.extend(padding)
+    #         input_mask.extend(padding)
+    #         segment_ids.extend([1 for x in padding])
 
-            feature = InputFeatures(
-                unique_id=-1,
-                example_index=-1,
-                tokens=tokens,
-                input_ids=input_ids,
-                input_mask=input_mask,
-                segment_ids=segment_ids,
-                answer_label=BinarySPAnswerType.NotIn_SP,
-                answer_text=BinarySPAnswerType.NotIn_SP.type.value,
-                relation=relation,
-                num_hops=num_hops,
-                question_entities=question_entity_names,
-                question_entity_ids=question_entity_ids,
-                answer_entities=answer_entity_names,
-                answer_entity_ids=answer_entity_ids,
-            )
-            features.append(feature)
-        question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
-        question_relations = random.sample(question_relations, positive_counts//2)
-    print("question negatives: "+str(list(question_relations)))
+    #         feature = InputFeatures(
+    #             unique_id=-1,
+    #             example_index=-1,
+    #             tokens=tokens,
+    #             input_ids=input_ids,
+    #             input_mask=input_mask,
+    #             segment_ids=segment_ids,
+    #             answer_label=BinarySPAnswerType.NotIn_SP,
+    #             answer_text="Not_In_SP",
+    #             relation=relation,
+    #             num_hops=num_hops,
+    #             question_entities=question_entity_names,
+    #             question_entity_ids=question_entity_ids,
+    #             answer_entities=answer_entity_names,
+    #             answer_entity_ids=answer_entity_ids,
+    #         )
+    #         features.append(feature)
+    #     question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
+    #     question_neg_count = min(positive_counts//2, len(question_relations))
+    #     question_relations = random.sample(question_relations, question_neg_count)
+    #print("question negatives: "+str(list(question_relations)))
     for relation in question_relations:
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
         for token in relation.split():
             sub_tokens = tokenize(tokenizer, token)
-            current_input_tokens.append(sub_tokens)
+            current_input_tokens.extend(sub_tokens)
             current_segments_ids.append(1)
         current_input_tokens.append("[SEP]")
         current_segments_ids.append(1)
-        input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        input_ids = tokenizer.convert_tokens_to_ids(current_input_tokens)
         input_mask = [1] * len(input_ids)
         # input_mask = [0 if item == 0 else 1 for item in input_ids]
         # Zero-pad up to the sequence length.
@@ -1030,7 +1044,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             input_mask=input_mask,
             segment_ids=segment_ids,
             answer_label=BinarySPAnswerType.NotIn_SP,
-            answer_text=BinarySPAnswerType.NotIn_SP.type.value,
+            answer_text="Not_In_SP",
             relation=relation,
             num_hops=num_hops,
             question_entities=question_entity_names,
@@ -1039,7 +1053,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             answer_entity_ids=answer_entity_ids,
         )
         features.append(feature)
-    exit()
+        #exit()
     return features, feature_stats
 
 
@@ -1116,7 +1130,7 @@ class CreateTFExampleFn(object):
             features["answer_label"] = create_int_feature([input_feature.answer_label])
 
             yield tf.train.Example(features=tf.train.Features(
-                feature=features)).SerializeToString(), stats_counter[idx]
+                feature=features)).SerializeToString(), {}
 
 
 class InputFeatures(object):

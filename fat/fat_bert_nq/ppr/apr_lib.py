@@ -101,7 +101,7 @@ class ApproximatePageRank(object):
     """
     #tf.logging.info('Start ppr')
     ppr_scores = csr_personalized_pagerank(seeds, self.data.adj_mat_t_csr,
-                                           alpha)
+                                           alpha, self.data.entity_names)
     #tf.logging.info('End ppr')
     sorted_idx = np.argsort(ppr_scores)[::-1]
     extracted_ents = sorted_idx[:topk]
@@ -160,10 +160,8 @@ class ApproximatePageRank(object):
               self.data.entity_names['e'][str(x)]['name']
               for x in extracted_ents
           ]))
-      print(str([
-                        self.data.entity_names['e'][str(x)]['name']
-                                      for x in extracted_ents
-                                                ][0:100]))
+      print(str([(self.data.entity_names['e'][str(x)]['name'], extracted_scores[idx])
+                                      for idx, x in enumerate(extracted_ents)][0:15]))
 
     facts = csr_topk_fact_extractor(self.data.adj_mat_t_csr, self.data.rel_dict,
                                     freq_dict, self.data.entity_names,
@@ -410,7 +408,7 @@ class ApproximatePageRank(object):
 
       freq_dict = {x: question_entity_ids.count(x) for x in question_entity_ids}
 
-      extracted_facts, relations = csr_get_question_links(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict, k_hop=FLAGS.k_hop)
+      extracted_facts, relations = csr_get_question_links(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict)
       augmented_facts = []
       relations = []
       for (subj_id, rel_id, obj_id) in extracted_facts:
