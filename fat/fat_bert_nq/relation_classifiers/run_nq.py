@@ -976,48 +976,49 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         features.append(feature)
 
     positive_counts = len(sp_relations)+1
-    # if is_training:
-    #     rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
-    #     print("rw negatives: "+str(list(rw_relations)))
-    #     for relation in rw_relations:
-    #         current_input_tokens = tokens.copy()
-    #         current_segments_ids = segment_ids.copy()
-    #         for token in relation.split():
-    #             sub_tokens = tokenize(tokenizer, token)
-    #             current_input_tokens.append(sub_tokens)
-    #             current_segments_ids.append(1)
-    #         current_input_tokens.append("[SEP]")
-    #         current_segments_ids.append(1)
-    #         input_ids = tokenizer.convert_tokens_to_ids(tokens)
-    #         input_mask = [1] * len(input_ids)
-    #         # input_mask = [0 if item == 0 else 1 for item in input_ids]
-    #         # Zero-pad up to the sequence length.
-    #         padding = [0] * (FLAGS.max_seq_length - len(input_ids))
-    #         input_ids.extend(padding)
-    #         input_mask.extend(padding)
-    #         segment_ids.extend([1 for x in padding])
-
-    #         feature = InputFeatures(
-    #             unique_id=-1,
-    #             example_index=-1,
-    #             tokens=tokens,
-    #             input_ids=input_ids,
-    #             input_mask=input_mask,
-    #             segment_ids=segment_ids,
-    #             answer_label=BinarySPAnswerType.NotIn_SP,
-    #             answer_text="Not_In_SP",
-    #             relation=relation,
-    #             num_hops=num_hops,
-    #             question_entities=question_entity_names,
-    #             question_entity_ids=question_entity_ids,
-    #             answer_entities=answer_entity_names,
-    #             answer_entity_ids=answer_entity_ids,
-    #         )
-    #         features.append(feature)
-    #     question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
-    #     question_neg_count = min(positive_counts//2, len(question_relations))
-    #     question_relations = random.sample(question_relations, question_neg_count)
-    #print("question negatives: "+str(list(question_relations)))
+    if is_training and FLAGS.include_unknowns > 0:
+        rw_relations = []
+        # rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
+        # print("rw negatives: "+str(list(rw_relations)))
+        # for relation in rw_relations:
+        #     current_input_tokens = tokens.copy()
+        #     current_segments_ids = segment_ids.copy()
+        #     for token in relation.split():
+        #         sub_tokens = tokenize(tokenizer, token)
+        #         current_input_tokens.append(sub_tokens)
+        #         current_segments_ids.append(1)
+        #     current_input_tokens.append("[SEP]")
+        #     current_segments_ids.append(1)
+        #     input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        #     input_mask = [1] * len(input_ids)
+        #     # input_mask = [0 if item == 0 else 1 for item in input_ids]
+        #     # Zero-pad up to the sequence length.
+        #     padding = [0] * (FLAGS.max_seq_length - len(input_ids))
+        #     input_ids.extend(padding)
+        #     input_mask.extend(padding)
+        #     segment_ids.extend([1 for x in padding])
+        #
+        #     feature = InputFeatures(
+        #         unique_id=-1,
+        #         example_index=-1,
+        #         tokens=tokens,
+        #         input_ids=input_ids,
+        #         input_mask=input_mask,
+        #         segment_ids=segment_ids,
+        #         answer_label=BinarySPAnswerType.NotIn_SP,
+        #         answer_text="Not_In_SP",
+        #         relation=relation,
+        #         num_hops=num_hops,
+        #         question_entities=question_entity_names,
+        #         question_entity_ids=question_entity_ids,
+        #         answer_entities=answer_entity_names,
+        #         answer_entity_ids=answer_entity_ids,
+        #     )
+        #     features.append(feature)
+        question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
+        question_neg_count = min(positive_counts, len(question_relations))
+        question_relations = random.sample(question_relations, question_neg_count)
+    print("question negatives: "+str(list(question_relations)))
     for relation in question_relations:
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
