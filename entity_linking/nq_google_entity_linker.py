@@ -168,8 +168,8 @@ def entity_link_nq(nq_data):
             for idx, la_cand in enumerate(nq_data[i]["long_answer_candidates"]):
                 answer, answer_map, entities, entity_map = extract_and_link_text(la_cand, tokens, fb2wiki)
                 if answer:
-                    #nq_data[i]["long_answer_candidates"][idx]["text_answer"] = answer
-                    #nq_data[i]["long_answer_candidates"][idx]["answer_map"] = answer_map
+                    # nq_data[i]["long_answer_candidates"][idx]["text_answer"] = answer
+                    # nq_data[i]["long_answer_candidates"][idx]["answer_map"] = answer_map
                     nq_data[i]["long_answer_candidates"][idx]["google_entity_map"] = entity_map
         if ARGS.annotate_short_answers:
             for idx, ann in enumerate(nq_data[i]["annotations"]):
@@ -180,10 +180,10 @@ def entity_link_nq(nq_data):
                     ans = short_ans[sid]
                     answer, answer_map, entities, entity_map = extract_and_link_text(ans, tokens, fb2wiki)
                     if answer:
-                        #nq_data[i]["annotations"][idx]["short_answers"][sid][
-                        #    "text_answer"] = answer
-                        #nq_data[i]["annotations"][idx]["short_answers"][sid][
-                        #    "answer_map"] = answer_map
+                        # nq_data[i]["annotations"][idx]["short_answers"][sid][
+                        #     "text_answer"] = answer
+                        # nq_data[i]["annotations"][idx]["short_answers"][sid][
+                        #     "answer_map"] = answer_map
                         nq_data[i]["annotations"][idx]["short_answers"][sid][
                             "google_entity_map"] = entity_map
         if ARGS.annotate_long_answers:
@@ -191,9 +191,9 @@ def entity_link_nq(nq_data):
                 long_ans = ann["long_answer"]
                 answer, answer_map, entities, entity_map = extract_and_link_text(long_ans, tokens, fb2wiki)
                 if answer:
-                    #nq_data[i]["annotations"][idx]["long_answer"]["text_answer"] = answer
-                    #nq_data[i]["annotations"][idx]["long_answer"][
-                    #    "answer_map"] = answer_map
+                    # nq_data[i]["annotations"][idx]["long_answer"]["text_answer"] = answer
+                    # nq_data[i]["annotations"][idx]["long_answer"][
+                    #     "google_answer_map"] = answer_map
                     nq_data[i]["annotations"][idx]["long_answer"][
                         "google_entity_map"] = entity_map
         if ARGS.annotate_question:

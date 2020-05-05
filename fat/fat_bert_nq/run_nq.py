@@ -184,6 +184,10 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_string(
     "analyse_incorrect_preds", None,
     "Flag to print incorrect predictions")
+tf.flags.DEFINE_bool(
+    "use_google_entities", False,
+    "Flag to use google entities")
+
 
 
 flags.DEFINE_integer("num_facts_limit", -1,
@@ -539,6 +543,13 @@ def create_example_from_jsonl(line):
   # annotated_idx: index of the first annotated context, -1 if null.
   # annotated_sa: short answer start and end char offsets, (-1, -1) if null.
   question = {"input_text": e["question_text"], "entity_map": e["question_entity_map"]}
+  if FLAGS.use_google_entities:
+      for key, value in e['google_question_entity_map'].items():
+          if key in question['entity_map']:
+              question['entity_map'][key].extend(value)
+          else:
+              question['entity_map'][key] = value
+      # question['entity_map'].update(e['google_question_entity_map'])
   answer = {
       "candidate_id": annotated_idx,
       "span_text": "",

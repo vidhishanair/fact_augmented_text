@@ -29,7 +29,7 @@ flags.DEFINE_string(
     'fact_score_type', 'FREQ_SCORE',
     'Scoring method for facts. One in ["FREQ_SCORE", "MIN_SCORE"]')
 
-def csr_personalized_pagerank(seeds, adj_mat, alpha, max_iter=20):
+def csr_personalized_pagerank(seeds, adj_mat, alpha, entity_names, max_iter=20):
   """Return the PPR Scores vector for the given seed and adjacency matrix.
 
   Algorithm :
@@ -56,6 +56,21 @@ def csr_personalized_pagerank(seeds, adj_mat, alpha, max_iter=20):
     r_new = (1. - restart_prob) * (adj_mat.dot(r))
     #print('Time taken for dot product: '+str(time.time() - st))
     s_ovr = s_ovr + r_new
+
+    # tmp_s = np.squeeze(s_ovr)
+    # sorted_idx = np.argsort(tmp_s)[::-1]
+    # extracted_ents = sorted_idx[:200]
+    # extracted_scores = tmp_s[sorted_idx[:200]]
+
+    # # Check for really low values
+    # # Get idx of First value < 1e-6, limit extracted ents till there
+    # zero_idx = np.where(tmp_s[extracted_ents] < 1e-6)[0]
+    # if zero_idx.shape[0] > 0:
+    #   extracted_ents = extracted_ents[:zero_idx[0]] 
+    # # print(str([(entity_names['e'][str(x)]['name'], extracted_scores[idx])
+    # #                                           for idx, x in enumerate(extracted_ents)][0:15]))
+
+
     delta = abs(r_new.sum())
     if delta < 1e-5:
       break
@@ -404,6 +419,35 @@ def csr_topk_fact_extractor(adj_mat, rel_dict, freq_dict, entity_names,
                   (obj_id, obj_name),
                   (rel_id, rel_name), score))
   return facts
+
+def csr_get_question_links(question_seeds, adj_mat, answer_seeds, rel_dict):
+  """Return list of shortest paths between question and answer seeds.
+
+  Args:
+    question_seeds: A list of seed entity ids
+    adj_mat: A sparse matrix of size E x E whose rows sum to one.
+    answer_seeds: A list of seed entity ids
+
+  Returns:
+      paths: A list of shortest paths between question and answer entities
+  """
+
+  seeds = question_seeds
+  tmp_num_hops = 0
+  tmp_num_hops += 1
+  # Slicing adjacency matrix to subgraph of all extracted entities
+  submat = adj_mat[:, seeds]
+  # Extracting non-zero entity pairs
+  row, col = submat.nonzero()
+  facts = []
+  relations = []
+  for ii in range(row.shape[0]):
+    obj_id = row[ii]
+    subj_id = seeds[col[ii]]
+    rel = rel_dict[(subj_id, obj_id)]
+    relations.append(rel)
+    facts.append((subj_id, rel, obj_id))
+  return facts, relations
 
 
 # def csr_topk_fact_extractor(adj_mat, rel_dict, entity_names):
