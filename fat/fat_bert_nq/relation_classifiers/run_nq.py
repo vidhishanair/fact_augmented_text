@@ -779,9 +779,9 @@ def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pr
         features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file)
         num_spans_to_ids[len(features)].append(example.qas_id)
 
-        for feature in features:
+        for idx, feature in enumerate(features):
             feature.example_index = example_index
-            feature.unique_id = feature.example_index + feature.doc_span_index
+            feature.unique_id = feature.example_index + idx
             output_fn(feature)
 
     return num_spans_to_ids
