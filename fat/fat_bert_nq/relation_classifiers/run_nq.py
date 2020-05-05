@@ -936,7 +936,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         return [], []
     sp_relations = set(sp_relations)
     print(example.questions[-1])
-    # print("positives: "+str(list(sp_relations)))
+    #print("positives: "+str(list(sp_relations)))
     # print(question_entity_names)
     # print(rw_facts)
     for relation in list(sp_relations):
@@ -1018,7 +1018,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
         question_neg_count = min(positive_counts, len(question_relations))
         question_relations = random.sample(question_relations, question_neg_count)
-    print("question negatives: "+str(list(question_relations)))
+    #print("question negatives: "+str(list(question_relations)))
     for relation in question_relations:
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
