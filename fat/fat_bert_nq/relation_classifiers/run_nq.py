@@ -976,8 +976,9 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         features.append(feature)
 
     positive_counts = len(sp_relations)+1
+    rw_relations = []
+    question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
     if is_training and FLAGS.include_unknowns > 0:
-        rw_relations = []
         # rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
         # print("rw negatives: "+str(list(rw_relations)))
         # for relation in rw_relations:
@@ -1015,7 +1016,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         #         answer_entity_ids=answer_entity_ids,
         #     )
         #     features.append(feature)
-        question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
         question_neg_count = min(positive_counts, len(question_relations))
         question_relations = random.sample(question_relations, question_neg_count)
     #print("question negatives: "+str(list(question_relations)))
