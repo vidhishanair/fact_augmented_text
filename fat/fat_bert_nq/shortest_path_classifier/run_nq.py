@@ -890,11 +890,15 @@ def format_and_write_result(result, tokenizer, output_fp):
                 question.append(word)
             elif current == 'facts':
                 facts.append(word)
+            elif current == 'pad':
+                continue
             else:
                 print("Some exception in current word")
                 print(current)
             if word == '[SEP]' and current == 'question':
                 current = 'facts'
+            elif word == '[PAD]' and current == 'facts':
+                current = 'pad'
             else:
                 continue
         except:
