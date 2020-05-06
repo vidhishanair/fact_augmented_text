@@ -65,6 +65,8 @@ flags.DEFINE_string("eval_data_path", None, "Precomputed eval path for dev set")
 
 flags.DEFINE_string("train_precomputed_file", None,
                     "Precomputed tf records for training.")
+flags.DEFINE_string("eval_precomputed_file", None,
+                            "Precomputed tf records for training.")
 
 flags.DEFINE_integer("train_num_precomputed", None,
                      "Number of precomputed tf records for training.")
@@ -75,6 +77,10 @@ flags.DEFINE_integer("train_num_precomputed", None,
 flags.DEFINE_string(
     "predict_file", None,
     "NQ json for predictions. E.g., dev-v1.1.jsonl.gz or test-v1.1.jsonl.gz")
+flags.DEFINE_string(
+            "metrics_file", None,
+                "Where to print predictions in NQ prediction format, to be passed to"
+                    "natural_questions.nq_eval.")
 
 flags.DEFINE_string(
     "output_prediction_file", None,
@@ -1318,7 +1324,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             # Computes the loss for labels.
             def compute_label_loss(logits, labels):
                 one_hot_labels = tf.one_hot(
-                    labels, depth=len(AnswerType), dtype=tf.float32)
+                        labels, depth=len(BinarySPAnswerType), dtype=tf.float32)
                 log_probs = tf.nn.log_softmax(logits, axis=-1)
                 loss = -tf.reduce_mean(
                     tf.reduce_sum(one_hot_labels * log_probs, axis=-1))
@@ -1358,7 +1364,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             # Computes the loss for labels.
             def compute_label_loss(logits, labels):
                 one_hot_labels = tf.one_hot(
-                    labels, depth=len(AnswerType), dtype=tf.float32)
+                    labels, depth=len(BinarySPAnswerType), dtype=tf.float32)
                 log_probs = tf.nn.log_softmax(logits, axis=-1)
                 loss = -tf.reduce_mean(
                     tf.reduce_sum(one_hot_labels * log_probs, axis=-1))
@@ -1415,7 +1421,7 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder):
     def _decode_record(record, name_to_features):
         """Decodes a record to a TensorFlow example."""
         example = tf.parse_single_example(record, name_to_features)
-
+        print(record)
         # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
         # So cast all int64 to int32.
         for name in list(example.keys()):
@@ -1523,9 +1529,9 @@ def format_and_write_result(result, tokenizer, output_fp):
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
     # predicted_label = pred_label
-    predicted_label_text = AnswerType(predicted_label).name
+    predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
-    answer_label_text = AnswerType(answer_label).name
+    answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
     output_fp.write(question + "\t" + facts + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
@@ -1647,8 +1653,8 @@ def main(_):
         all_results = []
         loss = []
         metrics_counter = {'count': 0, 'correct': 0,
-                           'SP_count': 0, 'SP_correct': 0,
-                           'Not_In_SP_count': 0, 'Not_In_SP_correct': 0}
+                           'In_SP_count': 0, 'In_SP_correct': 0,
+                           'NotIn_SP_count': 0, 'NotIn_SP_correct': 0}
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
@@ -1661,10 +1667,10 @@ def main(_):
                 metrics_counter["correct"] += 1
         metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
                    "num_examples": metrics_counter['count'],
-                   "SP_accuracy": metrics_counter['SP_correct']/float(metrics_counter['SP_count']),
-                   "SP_num_examples": metrics_counter['SP_count'],
-                   "Not_In_SP_accuracy": metrics_counter['Not_In_SP_correct']/float(metrics_counter['Not_In_SP_count']),
-                   "Not_In_SP_num_examples": metrics_counter['Not_In_SP_count']
+                   "In_SP_accuracy": metrics_counter['In_SP_correct']/float(metrics_counter['In_SP_count']),
+                   "In_SP_num_examples": metrics_counter['In_SP_count'],
+                   "NotIn_SP_accuracy": metrics_counter['NotIn_SP_correct']/float(metrics_counter['NotIn_SP_count']),
+                   "NotIn_SP_num_examples": metrics_counter['NotIn_SP_count']
                    }
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
