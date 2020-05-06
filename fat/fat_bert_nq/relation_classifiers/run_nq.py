@@ -945,7 +945,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         for token in relation.split():
             sub_tokens = tokenize(tokenizer, token)
             current_input_tokens.extend(sub_tokens)
-            current_segments_ids.append(1)
+            current_segments_ids.extend([1 for x in sub_tokens])
         current_input_tokens.append("[SEP]")
         current_segments_ids.append(1)
         input_ids = tokenizer.convert_tokens_to_ids(current_input_tokens)
@@ -955,15 +955,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         padding = [0] * (FLAGS.max_seq_length - len(input_ids))
         input_ids.extend(padding)
         input_mask.extend(padding)
-        segment_ids.extend([1 for x in padding])
+        current_segments_ids.extend([1 for x in padding])
 
         feature = InputFeatures(
             unique_id=-1,
             example_index=-1,
-            tokens=tokens,
+            tokens=current_input_tokens,
             input_ids=input_ids,
             input_mask=input_mask,
-            segment_ids=segment_ids,
+            segment_ids=current_segments_ids,
             answer_label=BinarySPAnswerType.In_SP,
             answer_text="In_SP",
             relation=relation,
@@ -975,7 +975,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         )
         features.append(feature)
 
-    positive_counts = len(sp_relations)+1
+    positive_counts = len(sp_relations)
     rw_relations = []
     question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
     if is_training and FLAGS.include_unknowns > 0:
@@ -986,8 +986,8 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         #     current_segments_ids = segment_ids.copy()
         #     for token in relation.split():
         #         sub_tokens = tokenize(tokenizer, token)
-        #         current_input_tokens.append(sub_tokens)
-        #         current_segments_ids.append(1)
+        #         current_input_tokens.extend(sub_tokens)
+        #         current_segments_ids.extend([1 for x in sub_tokens])
         #     current_input_tokens.append("[SEP]")
         #     current_segments_ids.append(1)
         #     input_ids = tokenizer.convert_tokens_to_ids(tokens)
@@ -997,15 +997,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         #     padding = [0] * (FLAGS.max_seq_length - len(input_ids))
         #     input_ids.extend(padding)
         #     input_mask.extend(padding)
-        #     segment_ids.extend([1 for x in padding])
+        #     current_segments_ids.extend([1 for x in padding])
         #
         #     feature = InputFeatures(
         #         unique_id=-1,
         #         example_index=-1,
-        #         tokens=tokens,
+        #         tokens=current_input_tokens,
         #         input_ids=input_ids,
         #         input_mask=input_mask,
-        #         segment_ids=segment_ids,
+        #         segment_ids=current_segments_ids,
         #         answer_label=BinarySPAnswerType.NotIn_SP,
         #         answer_text="Not_In_SP",
         #         relation=relation,
@@ -1025,7 +1025,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         for token in relation.split():
             sub_tokens = tokenize(tokenizer, token)
             current_input_tokens.extend(sub_tokens)
-            current_segments_ids.append(1)
+            current_segments_ids.extend([1 for x in sub_tokens])
         current_input_tokens.append("[SEP]")
         current_segments_ids.append(1)
         input_ids = tokenizer.convert_tokens_to_ids(current_input_tokens)
@@ -1035,15 +1035,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         padding = [0] * (FLAGS.max_seq_length - len(input_ids))
         input_ids.extend(padding)
         input_mask.extend(padding)
-        segment_ids.extend([1 for x in padding])
+        current_segments_ids.extend([1 for x in padding])
 
         feature = InputFeatures(
             unique_id=-1,
             example_index=-1,
-            tokens=tokens,
+            tokens=current_input_tokens,
             input_ids=input_ids,
             input_mask=input_mask,
-            segment_ids=segment_ids,
+            segment_ids=current_segments_ids,
             answer_label=BinarySPAnswerType.NotIn_SP,
             answer_text="Not_In_SP",
             relation=relation,
@@ -1123,6 +1123,9 @@ class CreateTFExampleFn(object):
                 return tf.train.Feature(
                     int64_list=tf.train.Int64List(value=list(values)))
 
+            #print(len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
+            #if len(input_feature.input_ids) != 512 or len(input_feature.input_mask) != 512 or len(input_feature.segment_ids) != 512:
+            #    exit()
             features = collections.OrderedDict()
             features["unique_ids"] = create_int_feature([input_feature.unique_id])
             features["input_ids"] = create_int_feature(input_feature.input_ids)
