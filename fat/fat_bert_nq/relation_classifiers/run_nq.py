@@ -777,7 +777,7 @@ def read_nq_entry(entry, is_training):
     return examples
 
 
-def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pretrain_file=None):
+def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pretrain_file=None, annotation_data=None):
     """Converts a list of NqExamples into InputFeatures."""
     num_spans_to_ids = collections.defaultdict(list)
     mode = 'train' if is_training else 'dev'
@@ -786,7 +786,7 @@ def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pr
 
     for example in examples:
         example_index = example.example_id
-        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file)
+        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file, annotation_data)
         num_spans_to_ids[len(features)].append(example.qas_id)
 
         for idx, feature in enumerate(features):
