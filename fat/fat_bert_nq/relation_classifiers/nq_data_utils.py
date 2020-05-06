@@ -49,6 +49,7 @@ def get_annotated_nq_examples(input_file):
         l = fp.readline()
         annotated_data = {}
         for line in fp:
+            line = line.strip("\n")
             items = line.split("\t")
             question_id = items[0]
             if question_id in annotated_data:

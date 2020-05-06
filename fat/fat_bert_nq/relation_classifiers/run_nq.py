@@ -914,15 +914,16 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     # all_doc_tokens = []
     features = []
     feature_stats = []
-    question_id = example.qas_id
+    question_id = example.example_id
     relevant_paths = []
     irrelevant_paths = []
     if FLAGS.relevant_sp_positives_only:
-        if question_id in annotation_data:
-            annotation = annotation_data[question_id]
+        if str(question_id) in annotation_data:
+            annotation = annotation_data[str(question_id)]
             for item in annotation:
                 ann = item[7]
                 path = item[6]
+                print(ann, path)
                 if ann == 'Relevant Necessary and Sufficient':
                     relevant_paths.append(path)
                 elif ann == "Relevant but not Necessary and Not Sufficient":
@@ -961,9 +962,9 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     if len(facts)==0:
         return [], []
     sp_relations = set(sp_relations)
-    positive_sp_relations:
+    positive_sp_relations = []
     print(example.questions[-1])
-    #print("positives: "+str(list(sp_relations)))
+    print("sp relations: "+str(list(sp_relations)))
     # print(question_entity_names)
     # print(rw_facts)
     for relation in list(sp_relations):
@@ -1005,7 +1006,11 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         )
         features.append(feature)
 
+    print("positive relations: "+str(list(positive_sp_relations)))
+    print(relevant_paths)
     positive_counts = len(positive_sp_relations)
+    if positive_counts == 0:
+        return [], []
     rw_relations = []
     question_relations = list(set(question_relations) - set(positive_sp_relations))
     if is_training and FLAGS.include_unknowns > 0:
@@ -1048,7 +1053,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         #     features.append(feature)
         question_neg_count = min(positive_counts, len(question_relations))
         question_relations = random.sample(question_relations, question_neg_count)
-    #print("question negatives: "+str(list(question_relations)))
+    print("question negatives: "+str(list(question_relations)))
     for relation in question_relations:
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()

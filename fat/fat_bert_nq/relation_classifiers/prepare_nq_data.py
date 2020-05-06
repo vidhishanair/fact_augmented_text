@@ -112,7 +112,7 @@ def main(_):
                                                         FLAGS.split, FLAGS.task_id,
                                                         FLAGS.shard_split_id,
                                                         "jsonl.gz")
-        annotation_data = nq_data_utils.get_annotated_nq_examples(os.path.join(FLAGS.input_data_dir+"train.tsv"))
+        annotation_data = nq_data_utils.get_annotated_nq_examples(os.path.join(FLAGS.input_data_dir,"train.tsv"))
         print("Reading file %s", input_file)
         file_stats_counter = {'example_count': 0, 'sp_recall_sum': 0, 'answer_reach_counter':0,
                               'single_answer_reach_counter':0, 'multi_answer_recall':0,
