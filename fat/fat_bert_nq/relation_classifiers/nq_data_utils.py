@@ -42,3 +42,17 @@ def get_nq_examples(input_jsonl_pattern):
         with gzip.GzipFile(fileobj=tf.gfile.Open(input_path, "rb")) as input_file:
             for line in input_file:
                 yield run_nq.create_example_from_jsonl(line)
+
+
+def get_annotated_nq_examples(input_file):
+    with tf.gfile.Open(input_file, "r") as fp:
+        l = fp.readline()
+        annotated_data = {}
+        for line in fp:
+            items = line.split("\t")
+            question_id = items[0]
+            if question_id in annotated_data:
+                annotated_data[question_id].append(items)
+            else:
+                annotated_data[question_id] = [items]
+        return annotated_data

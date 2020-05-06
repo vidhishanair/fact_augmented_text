@@ -193,6 +193,9 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_bool(
     "use_google_entities", False,
     "Flag to use google entities")
+tf.flags.DEFINE_bool(
+    "relevant_sp_positives_only", False,
+    "Flag to use google entities")
 flags.DEFINE_integer(
             "k_hop", 2,
                 "Num of hops for shortest path query")
@@ -901,7 +904,7 @@ class BinarySPAnswerType(enum.IntEnum):
     In_SP = 1
     NotIn_SP = 0
 
-def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file=None, fixed_train_list=None):
+def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file=None, fixed_train_list=None, annotation_data=None):
     """Converts a single NqExample into a list of InputFeatures."""
     if FLAGS.use_question_level_apr_data:
         apr_obj = ApproximatePageRank(question_id=example.example_id)
@@ -911,6 +914,23 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     # all_doc_tokens = []
     features = []
     feature_stats = []
+    question_id = example.qas_id
+    relevant_paths = []
+    irrelevant_paths = []
+    if FLAGS.relevant_sp_positives_only:
+        if question_id in annotation_data:
+            annotation = annotation_data[question_id]
+            for item in annotation:
+                ann = item[7]
+                path = item[6]
+                if ann == 'Relevant Necessary and Sufficient':
+                    relevant_paths.append(path)
+                elif ann == "Relevant but not Necessary and Not Sufficient":
+                    relevant_paths.append(path)
+                elif ann == "Relevant and Necessary but Not Sufficient":
+                    relevant_paths.append(path)
+                elif ann == "Irrelevant":
+                    irrelevant_paths.append(path)
 
     # QUERY
     query_tokens = []
@@ -941,11 +961,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     if len(facts)==0:
         return [], []
     sp_relations = set(sp_relations)
+    positive_sp_relations:
     print(example.questions[-1])
     #print("positives: "+str(list(sp_relations)))
     # print(question_entity_names)
     # print(rw_facts)
     for relation in list(sp_relations):
+        if FLAGS.relevant_sp_positives_only and not any(relation in s for s in relevant_paths):
+            continue
+        positive_sp_relations.append(relation)
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
         for token in relation.split():
@@ -981,9 +1005,9 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         )
         features.append(feature)
 
-    positive_counts = len(sp_relations)
+    positive_counts = len(positive_sp_relations)
     rw_relations = []
-    question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
+    question_relations = list(set(question_relations) - set(positive_sp_relations))
     if is_training and FLAGS.include_unknowns > 0:
         # rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
         # print("rw negatives: "+str(list(rw_relations)))
@@ -1110,14 +1134,14 @@ class CreateTFExampleFn(object):
         self.apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
                                            shard_id=FLAGS.shard_split_id)
 
-    def process(self, example, pretrain_file=None, fixed_train_list=None):
+    def process(self, example, pretrain_file=None, fixed_train_list=None, annotation_data=None):
         """Coverts an NQ example in a list of serialized tf examples."""
         nq_examples = read_nq_entry(example, self.is_training)
         input_features = []
         stats_counter = []
         for nq_example in nq_examples:
             features, stat_counts = convert_single_example(nq_example, self.tokenizer, self.apr_obj,
-                                                           self.is_training, pretrain_file, fixed_train_list)
+                                                           self.is_training, pretrain_file, fixed_train_list, annotation_data)
             input_features.extend(features)
             stats_counter.extend(stat_counts)
 
@@ -1241,7 +1265,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
     answer_type_output_layer = model.get_pooled_output()
     answer_type_hidden_size = answer_type_output_layer.shape[-1].value
 
-    num_answer_types = 2  # Relevant_Nec_Suff, Rel_Nec_Not_Suff, Rel_Not_Nec_Not_Suf, Irr
+    num_answer_types = len(BinarySPAnswerType)  # Relevant_Nec_Suff, Rel_Nec_Not_Suff, Rel_Not_Nec_Not_Suf, Irr
     answer_type_output_weights = tf.get_variable(
         "answer_type_output_weights", [num_answer_types, answer_type_hidden_size],
         initializer=tf.truncated_normal_initializer(stddev=0.02))
