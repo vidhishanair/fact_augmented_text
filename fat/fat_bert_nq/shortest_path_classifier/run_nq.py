@@ -189,6 +189,9 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_string(
     "analyse_incorrect_preds", None,
     "Flag to print incorrect predictions")
+tf.flags.DEFINE_string(
+    "binary_classification", False,
+    "Flag to print incorrect predictions")
 
 flags.DEFINE_integer("num_facts_limit", -1,
                      "Limiting number of facts")
@@ -286,6 +289,11 @@ class AnswerType(enum.IntEnum):
     Relevant_but_not_Necessary_and_Not_Sufficient = 2
     Irrelevant = 3
 
+class BinaryAnswerType(enum.IntEnum):
+    """Type of NQ answer."""
+    Relevant = 1
+    Irrelevant = 0
+
 
 class Answer(collections.namedtuple("Answer", ["type", "text"])):
     """Answer record.
@@ -334,16 +342,31 @@ def make_nq_answer(answer):
     """
     answer = answer.strip()
     answer_type = None
-    if answer == 'Relevant Necessary and Sufficient':
-        answer_type = AnswerType.Relevant_Necessary_and_Sufficient
-    elif answer == "Relevant but not Necessary and Not Sufficient":
-        answer_type = AnswerType.Relevant_but_not_Necessary_and_Not_Sufficient
-    elif answer == "Relevant and Necessary but Not Sufficient":
-        answer_type = AnswerType.Relevant_and_Necessary_but_Not_Sufficient
-    elif answer == "Irrelevant":
-        answer_type = AnswerType.Irrelevant
+    answer_text = answer
+    if FLAGS.binary_classification:
+        if answer == 'Relevant Necessary and Sufficient':
+            answer_type = BinaryAnswerType.Relevant
+            answer_text = 'Relevant'
+        elif answer == "Relevant but not Necessary and Not Sufficient":
+            answer_type = BinaryAnswerType.Relevant
+            answer_text = 'Relevant'
+        elif answer == "Relevant and Necessary but Not Sufficient":
+            answer_type = BinaryAnswerType.Relevant
+            answer_text = 'Relevant'
+        elif answer == "Irrelevant":
+            answer_type = BinaryAnswerType.Irrelevant
+            answer_text = 'Irrelevant'
+    else:
+        if answer == 'Relevant Necessary and Sufficient':
+            answer_type = AnswerType.Relevant_Necessary_and_Sufficient
+        elif answer == "Relevant but not Necessary and Not Sufficient":
+            answer_type = AnswerType.Relevant_but_not_Necessary_and_Not_Sufficient
+        elif answer == "Relevant and Necessary but Not Sufficient":
+            answer_type = AnswerType.Relevant_and_Necessary_but_Not_Sufficient
+        elif answer == "Irrelevant":
+            answer_type = AnswerType.Irrelevant
 
-    return Answer(answer_type, text=answer)
+    return Answer(answer_type, text=answer_text)
 
 
 def create_example_from_line(line):
@@ -614,7 +637,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
     answer_type_output_layer = model.get_pooled_output()
     answer_type_hidden_size = answer_type_output_layer.shape[-1].value
 
-    num_answer_types = 4  # Relevant_Nec_Suff, Rel_Nec_Not_Suff, Rel_Not_Nec_Not_Suf, Irr
+    num_answer_types = len(BinaryAnswerType) if FLAGS.binary_classification else len(AnswerType)  # Relevant_Nec_Suff, Rel_Nec_Not_Suff, Rel_Not_Nec_Not_Suf, Irr
     answer_type_output_weights = tf.get_variable(
         "answer_type_output_weights", [num_answer_types, answer_type_hidden_size],
         initializer=tf.truncated_normal_initializer(stddev=0.02))
@@ -700,7 +723,8 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             # Computes the loss for labels.
             def compute_label_loss(logits, labels):
                 one_hot_labels = tf.one_hot(
-                    labels, depth=len(AnswerType), dtype=tf.float32)
+                    labels, depth=len(BinaryAnswerType) if FLAGS.binary_classification else len(AnswerType),
+                    dtype=tf.float32)
                 log_probs = tf.nn.log_softmax(logits, axis=-1)
                 loss = -tf.reduce_mean(
                     tf.reduce_sum(one_hot_labels * log_probs, axis=-1))
@@ -740,7 +764,8 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             # Computes the loss for labels.
             def compute_label_loss(logits, labels):
                 one_hot_labels = tf.one_hot(
-                    labels, depth=len(AnswerType), dtype=tf.float32)
+                    labels, depth=len(BinaryAnswerType) if FLAGS.binary_classification else len(AnswerType),
+                    dtype=tf.float32)
                 log_probs = tf.nn.log_softmax(logits, axis=-1)
                 loss = -tf.reduce_mean(
                     tf.reduce_sum(one_hot_labels * log_probs, axis=-1))
@@ -890,11 +915,15 @@ def format_and_write_result(result, tokenizer, output_fp):
                 question.append(word)
             elif current == 'facts':
                 facts.append(word)
+            elif current == 'pad':
+                continue
             else:
                 print("Some exception in current word")
                 print(current)
             if word == '[SEP]' and current == 'question':
                 current = 'facts'
+            elif word == '[PAD]' and current == 'facts':
+                current = 'pad'
             else:
                 continue
         except:
@@ -905,9 +934,9 @@ def format_and_write_result(result, tokenizer, output_fp):
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
     # predicted_label = pred_label
-    predicted_label_text = AnswerType(predicted_label).name
+    predicted_label_text = BinaryAnswerType(predicted_label).name if FLAGS.binary_classification else AnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
-    answer_label_text = AnswerType(answer_label).name
+    answer_label_text = BinaryAnswerType(answer_label).name if FLAGS.binary_classification else AnswerType(answer_label).name
     is_correct = predicted_label == answer_label
     output_fp.write(question + "\t" + facts + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
@@ -1028,7 +1057,12 @@ def main(_):
         # If running eval on the TPU, you will need to specify the number of steps.
         all_results = []
         loss = []
-        metrics_counter = {'count': 0, 'correct': 0,
+        if FLAGS.binary_classification:
+            metrics_counter = {'count': 0, 'correct': 0,
+                               'Relevant_count': 0, 'Relevant_correct': 0,
+                               'Irrelevant_count': 0, 'Irrelevant_correct': 0}
+        else:
+            metrics_counter = {'count': 0, 'correct': 0,
                            'Relevant_Necessary_and_Sufficient_count': 0, 'Relevant_Necessary_and_Sufficient_correct': 0,
                            'Relevant_but_not_Necessary_and_Not_Sufficient_count': 0, 'Relevant_but_not_Necessary_and_Not_Sufficient_correct': 0,
                             'Relevant_and_Necessary_but_Not_Sufficient_count': 0, 'Relevant_and_Necessary_but_Not_Sufficient_correct': 0,
@@ -1043,7 +1077,16 @@ def main(_):
             if is_correct:
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
-        metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
+        if FLAGS.binary_classification:
+            metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
+                       "num_examples": metrics_counter['count'],
+                       "Relevant_accuracy": metrics_counter['Relevant_correct']/float(metrics_counter['Relevant_count']),
+                       "Relevant_num_examples": metrics_counter['Relevant_count'],
+                       "Irrelevant_accuracy": metrics_counter['Irrelevant_correct']/float(metrics_counter['Irrelevant_count']),
+                       "Irrelevant_num_examples": metrics_counter['Irrelevant_count'],
+                       }
+        else:
+            metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
                    "num_examples": metrics_counter['count'],
                    "Relevant_Necessary_and_Sufficient_accuracy": metrics_counter['Relevant_Necessary_and_Sufficient_correct']/float(metrics_counter['Relevant_Necessary_and_Sufficient_count']),
                    "Relevant_Necessary_and_Sufficient_num_examples": metrics_counter['Relevant_Necessary_and_Sufficient_count'],
