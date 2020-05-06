@@ -1561,12 +1561,15 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_type_logits = result["answer_type_logits"]
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
+    predicted_score = int(sorted(
+        enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][1])
     # predicted_label = pred_label
     predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
     output_fp.write(question + "\t" + facts + "\t" +
+                    str(predicted_score) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
     return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct
