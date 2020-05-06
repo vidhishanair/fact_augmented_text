@@ -65,6 +65,8 @@ flags.DEFINE_string("eval_data_path", None, "Precomputed eval path for dev set")
 
 flags.DEFINE_string("train_precomputed_file", None,
                     "Precomputed tf records for training.")
+flags.DEFINE_string("eval_precomputed_file", None,
+                            "Precomputed tf records for training.")
 
 flags.DEFINE_integer("train_num_precomputed", None,
                      "Number of precomputed tf records for training.")
@@ -75,6 +77,10 @@ flags.DEFINE_integer("train_num_precomputed", None,
 flags.DEFINE_string(
     "predict_file", None,
     "NQ json for predictions. E.g., dev-v1.1.jsonl.gz or test-v1.1.jsonl.gz")
+flags.DEFINE_string(
+            "metrics_file", None,
+                "Where to print predictions in NQ prediction format, to be passed to"
+                    "natural_questions.nq_eval.")
 
 flags.DEFINE_string(
     "output_prediction_file", None,
@@ -186,6 +192,9 @@ tf.flags.DEFINE_string(
     "Flag to print incorrect predictions")
 tf.flags.DEFINE_bool(
     "use_google_entities", False,
+    "Flag to use google entities")
+tf.flags.DEFINE_bool(
+    "relevant_sp_positives_only", False,
     "Flag to use google entities")
 flags.DEFINE_integer(
             "k_hop", 2,
@@ -895,7 +904,7 @@ class BinarySPAnswerType(enum.IntEnum):
     In_SP = 1
     NotIn_SP = 0
 
-def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file=None, fixed_train_list=None):
+def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file=None, fixed_train_list=None, annotation_data=None):
     """Converts a single NqExample into a list of InputFeatures."""
     if FLAGS.use_question_level_apr_data:
         apr_obj = ApproximatePageRank(question_id=example.example_id)
@@ -905,6 +914,23 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     # all_doc_tokens = []
     features = []
     feature_stats = []
+    question_id = example.qas_id
+    relevant_paths = []
+    irrelevant_paths = []
+    if FLAGS.relevant_sp_positives_only:
+        if question_id in annotation_data:
+            annotation = annotation_data[question_id]
+            for item in annotation:
+                ann = item[7]
+                path = item[6]
+                if ann == 'Relevant Necessary and Sufficient':
+                    relevant_paths.append(path)
+                elif ann == "Relevant but not Necessary and Not Sufficient":
+                    relevant_paths.append(path)
+                elif ann == "Relevant and Necessary but Not Sufficient":
+                    relevant_paths.append(path)
+                elif ann == "Irrelevant":
+                    irrelevant_paths.append(path)
 
     # QUERY
     query_tokens = []
@@ -935,17 +961,21 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     if len(facts)==0:
         return [], []
     sp_relations = set(sp_relations)
+    positive_sp_relations:
     print(example.questions[-1])
     #print("positives: "+str(list(sp_relations)))
     # print(question_entity_names)
     # print(rw_facts)
     for relation in list(sp_relations):
+        if FLAGS.relevant_sp_positives_only and not any(relation in s for s in relevant_paths):
+            continue
+        positive_sp_relations.append(relation)
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
         for token in relation.split():
             sub_tokens = tokenize(tokenizer, token)
             current_input_tokens.extend(sub_tokens)
-            current_segments_ids.append(1)
+            current_segments_ids.extend([1 for x in sub_tokens])
         current_input_tokens.append("[SEP]")
         current_segments_ids.append(1)
         input_ids = tokenizer.convert_tokens_to_ids(current_input_tokens)
@@ -955,15 +985,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         padding = [0] * (FLAGS.max_seq_length - len(input_ids))
         input_ids.extend(padding)
         input_mask.extend(padding)
-        segment_ids.extend([1 for x in padding])
+        current_segments_ids.extend([1 for x in padding])
 
         feature = InputFeatures(
             unique_id=-1,
             example_index=-1,
-            tokens=tokens,
+            tokens=current_input_tokens,
             input_ids=input_ids,
             input_mask=input_mask,
-            segment_ids=segment_ids,
+            segment_ids=current_segments_ids,
             answer_label=BinarySPAnswerType.In_SP,
             answer_text="In_SP",
             relation=relation,
@@ -975,9 +1005,9 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         )
         features.append(feature)
 
-    positive_counts = len(sp_relations)+1
+    positive_counts = len(positive_sp_relations)
     rw_relations = []
-    question_relations = list(set(question_relations) - sp_relations - set(rw_relations))
+    question_relations = list(set(question_relations) - set(positive_sp_relations))
     if is_training and FLAGS.include_unknowns > 0:
         # rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
         # print("rw negatives: "+str(list(rw_relations)))
@@ -986,8 +1016,8 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         #     current_segments_ids = segment_ids.copy()
         #     for token in relation.split():
         #         sub_tokens = tokenize(tokenizer, token)
-        #         current_input_tokens.append(sub_tokens)
-        #         current_segments_ids.append(1)
+        #         current_input_tokens.extend(sub_tokens)
+        #         current_segments_ids.extend([1 for x in sub_tokens])
         #     current_input_tokens.append("[SEP]")
         #     current_segments_ids.append(1)
         #     input_ids = tokenizer.convert_tokens_to_ids(tokens)
@@ -997,15 +1027,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         #     padding = [0] * (FLAGS.max_seq_length - len(input_ids))
         #     input_ids.extend(padding)
         #     input_mask.extend(padding)
-        #     segment_ids.extend([1 for x in padding])
+        #     current_segments_ids.extend([1 for x in padding])
         #
         #     feature = InputFeatures(
         #         unique_id=-1,
         #         example_index=-1,
-        #         tokens=tokens,
+        #         tokens=current_input_tokens,
         #         input_ids=input_ids,
         #         input_mask=input_mask,
-        #         segment_ids=segment_ids,
+        #         segment_ids=current_segments_ids,
         #         answer_label=BinarySPAnswerType.NotIn_SP,
         #         answer_text="Not_In_SP",
         #         relation=relation,
@@ -1025,7 +1055,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         for token in relation.split():
             sub_tokens = tokenize(tokenizer, token)
             current_input_tokens.extend(sub_tokens)
-            current_segments_ids.append(1)
+            current_segments_ids.extend([1 for x in sub_tokens])
         current_input_tokens.append("[SEP]")
         current_segments_ids.append(1)
         input_ids = tokenizer.convert_tokens_to_ids(current_input_tokens)
@@ -1035,15 +1065,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         padding = [0] * (FLAGS.max_seq_length - len(input_ids))
         input_ids.extend(padding)
         input_mask.extend(padding)
-        segment_ids.extend([1 for x in padding])
+        current_segments_ids.extend([1 for x in padding])
 
         feature = InputFeatures(
             unique_id=-1,
             example_index=-1,
-            tokens=tokens,
+            tokens=current_input_tokens,
             input_ids=input_ids,
             input_mask=input_mask,
-            segment_ids=segment_ids,
+            segment_ids=current_segments_ids,
             answer_label=BinarySPAnswerType.NotIn_SP,
             answer_text="Not_In_SP",
             relation=relation,
@@ -1104,14 +1134,14 @@ class CreateTFExampleFn(object):
         self.apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
                                            shard_id=FLAGS.shard_split_id)
 
-    def process(self, example, pretrain_file=None, fixed_train_list=None):
+    def process(self, example, pretrain_file=None, fixed_train_list=None, annotation_data=None):
         """Coverts an NQ example in a list of serialized tf examples."""
         nq_examples = read_nq_entry(example, self.is_training)
         input_features = []
         stats_counter = []
         for nq_example in nq_examples:
             features, stat_counts = convert_single_example(nq_example, self.tokenizer, self.apr_obj,
-                                                           self.is_training, pretrain_file, fixed_train_list)
+                                                           self.is_training, pretrain_file, fixed_train_list, annotation_data)
             input_features.extend(features)
             stats_counter.extend(stat_counts)
 
@@ -1123,6 +1153,9 @@ class CreateTFExampleFn(object):
                 return tf.train.Feature(
                     int64_list=tf.train.Int64List(value=list(values)))
 
+            #print(len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
+            #if len(input_feature.input_ids) != 512 or len(input_feature.input_mask) != 512 or len(input_feature.segment_ids) != 512:
+            #    exit()
             features = collections.OrderedDict()
             features["unique_ids"] = create_int_feature([input_feature.unique_id])
             features["input_ids"] = create_int_feature(input_feature.input_ids)
@@ -1232,7 +1265,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
     answer_type_output_layer = model.get_pooled_output()
     answer_type_hidden_size = answer_type_output_layer.shape[-1].value
 
-    num_answer_types = 2  # Relevant_Nec_Suff, Rel_Nec_Not_Suff, Rel_Not_Nec_Not_Suf, Irr
+    num_answer_types = len(BinarySPAnswerType)  # Relevant_Nec_Suff, Rel_Nec_Not_Suff, Rel_Not_Nec_Not_Suf, Irr
     answer_type_output_weights = tf.get_variable(
         "answer_type_output_weights", [num_answer_types, answer_type_hidden_size],
         initializer=tf.truncated_normal_initializer(stddev=0.02))
@@ -1318,7 +1351,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             # Computes the loss for labels.
             def compute_label_loss(logits, labels):
                 one_hot_labels = tf.one_hot(
-                    labels, depth=len(AnswerType), dtype=tf.float32)
+                        labels, depth=len(BinarySPAnswerType), dtype=tf.float32)
                 log_probs = tf.nn.log_softmax(logits, axis=-1)
                 loss = -tf.reduce_mean(
                     tf.reduce_sum(one_hot_labels * log_probs, axis=-1))
@@ -1358,7 +1391,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             # Computes the loss for labels.
             def compute_label_loss(logits, labels):
                 one_hot_labels = tf.one_hot(
-                    labels, depth=len(AnswerType), dtype=tf.float32)
+                    labels, depth=len(BinarySPAnswerType), dtype=tf.float32)
                 log_probs = tf.nn.log_softmax(logits, axis=-1)
                 loss = -tf.reduce_mean(
                     tf.reduce_sum(one_hot_labels * log_probs, axis=-1))
@@ -1415,7 +1448,7 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder):
     def _decode_record(record, name_to_features):
         """Decodes a record to a TensorFlow example."""
         example = tf.parse_single_example(record, name_to_features)
-
+        print(record)
         # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
         # So cast all int64 to int32.
         for name in list(example.keys()):
@@ -1523,9 +1556,9 @@ def format_and_write_result(result, tokenizer, output_fp):
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
     # predicted_label = pred_label
-    predicted_label_text = AnswerType(predicted_label).name
+    predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
-    answer_label_text = AnswerType(answer_label).name
+    answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
     output_fp.write(question + "\t" + facts + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
@@ -1647,8 +1680,8 @@ def main(_):
         all_results = []
         loss = []
         metrics_counter = {'count': 0, 'correct': 0,
-                           'SP_count': 0, 'SP_correct': 0,
-                           'Not_In_SP_count': 0, 'Not_In_SP_correct': 0}
+                           'In_SP_count': 0, 'In_SP_correct': 0,
+                           'NotIn_SP_count': 0, 'NotIn_SP_correct': 0}
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
@@ -1661,10 +1694,10 @@ def main(_):
                 metrics_counter["correct"] += 1
         metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
                    "num_examples": metrics_counter['count'],
-                   "SP_accuracy": metrics_counter['SP_correct']/float(metrics_counter['SP_count']),
-                   "SP_num_examples": metrics_counter['SP_count'],
-                   "Not_In_SP_accuracy": metrics_counter['Not_In_SP_correct']/float(metrics_counter['Not_In_SP_count']),
-                   "Not_In_SP_num_examples": metrics_counter['Not_In_SP_count']
+                   "In_SP_accuracy": metrics_counter['In_SP_correct']/float(metrics_counter['In_SP_count']),
+                   "In_SP_num_examples": metrics_counter['In_SP_count'],
+                   "NotIn_SP_accuracy": metrics_counter['NotIn_SP_correct']/float(metrics_counter['NotIn_SP_count']),
+                   "NotIn_SP_num_examples": metrics_counter['NotIn_SP_count']
                    }
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
