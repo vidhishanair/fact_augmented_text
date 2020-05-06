@@ -37,6 +37,7 @@ dim = 300
 
 apr_obj = ApproximatePageRank(mode='train', task_id=FLAGS.task_id,
                               shard_id=FLAGS.shard_id)
+#apr_obj = ApproximatePageRank()
 
 def extract_nq_data(nq_file):
     """Read nq shard file and return dict of nq_data."""
@@ -62,34 +63,34 @@ def extract_nq_data(nq_file):
                     entities.extend([ ent for k, v in sa["entity_map"].items() for (ids, ent) in v ])
         counter += 1
     return data, list(set(entities))
-nq_data, nq_entities = extract_nq_data(input_file)
-k_hop_entities, k_hop_facts = apr_obj.get_khop_facts(nq_entities, 3)
-un_rels = []
-for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in k_hop_facts:
-    un_rels.append(rel)
-un_rels = list(set(un_rels))
-print(len(un_rels))
-
-ent2id = dict()
-rel2id = dict()
-rel2id['NoRel'] = len(rel2id)
-entity_names = dict()
-entity_names['e'] = dict()
-entity_names['r'] = dict()
-file_names = apr_obj.data.get_file_names(full_wiki=True, files_dir=FLAGS.apr_files_dir)
-for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in apr_obj.data.get_next_fact(file_names, full_wiki=True, sub_entities=None, sub_facts=None):
-          #print(((subj, subj_name), (rel, rel_name), (obj, obj_name)))
-          if subj not in ent2id:
-            ent2id[subj] = len(ent2id)
-          if obj not in ent2id:
-            ent2id[obj] = len(ent2id)
-          if rel not in rel2id:
-            rel2id[rel] = len(rel2id)
-          subj_id = ent2id[subj]
-          obj_id = ent2id[obj]
-          rel_id = rel2id[rel]
-          
-print(len(rel2id))
+# nq_data, nq_entities = extract_nq_data(input_file)
+# k_hop_entities, k_hop_facts = apr_obj.get_khop_facts(nq_entities, 3)
+# un_rels = []
+# for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in k_hop_facts:
+#     un_rels.append(rel)
+# un_rels = list(set(un_rels))
+# print(len(un_rels))
+# 
+# ent2id = dict()
+# rel2id = dict()
+# rel2id['NoRel'] = len(rel2id)
+# entity_names = dict()
+# entity_names['e'] = dict()
+# entity_names['r'] = dict()
+# file_names = apr_obj.data.get_file_names(full_wiki=True, files_dir=FLAGS.apr_files_dir)
+# for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in apr_obj.data.get_next_fact(file_names, full_wiki=True, sub_entities=None, sub_facts=None):
+#           #print(((subj, subj_name), (rel, rel_name), (obj, obj_name)))
+#           if subj not in ent2id:
+#             ent2id[subj] = len(ent2id)
+#           if obj not in ent2id:
+#             ent2id[obj] = len(ent2id)
+#           if rel not in rel2id:
+#             rel2id[rel] = len(rel2id)
+#           subj_id = ent2id[subj]
+#           obj_id = ent2id[obj]
+#           rel_id = rel2id[rel]
+#           
+# print(len(rel2id))
 def has_long_answer(a):
     return (a["long_answer"]["start_token"] >= 0 and
             a["long_answer"]["end_token"] >= 0)
@@ -144,7 +145,6 @@ relation_embeddings = pkl.load(open(FLAGS.relation_emb_file, 'rb'))
     #     rel = id2rel[rel_id]
 print(len(apr_obj.data.rel2id))
 print(len(relation_embeddings))
-exit()
 wp = open(FLAGS.output_file, 'w')
 with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
     count = 0
@@ -154,8 +154,8 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
         #    break
         data = json.loads(line)
         q_id, question_text = data["example_id"], data["question_text"]
-        if q_id != 8085171419767494900:
-           continue
+        #if q_id != 8085171419767494900:
+        #   continue
         #print(question_text)
         question_entity_map = data["question_entity_map"]
 
@@ -194,7 +194,7 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
             subj_id = question_entity_ids[col[ii]]
             rel_id = apr_obj.data.rel_dict[(subj_id, obj_id)]
             rel_name = apr_obj.data.entity_names['r'][str(rel_id)]['name']
-            print(apr_obj.data.entity_names['e'][str(subj_id)]['name'], rel_name, apr_obj.data.entity_names['e'][str(obj_id)]['name'])
+            #print(apr_obj.data.entity_names['e'][str(subj_id)]['name'], rel_name, apr_obj.data.entity_names['e'][str(obj_id)]['name'])
             #print(entities[str(obj_id)]['name'], rel_name)
             qrels.append(rel_name)
         qrels = list(set(qrels))
@@ -207,7 +207,6 @@ with gzip.GzipFile(fileobj=tf.gfile.Open(input_file, "rb")) as fp:
             str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
             for x in facts
         ])
-        exit()
         if len(facts) > 0:
             wp.write(str(q_id) + "\t" + question_text + "\t" + question_entity_names
                      + "\t" + str(qrels) + "\t" + str(nl_facts) + "\t"

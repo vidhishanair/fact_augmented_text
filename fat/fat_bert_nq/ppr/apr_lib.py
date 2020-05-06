@@ -29,9 +29,9 @@ import random
 import numpy as np
 import tensorflow as tf
 from fat.fat_bert_nq.ppr.apr_algo import csr_personalized_pagerank, csr_get_random_facts_of_question, \
-    csr_get_shortest_path, csr_get_all_paths
-from fat.fat_bert_nq.ppr.apr_algo import csr_topk_fact_extractor
-from fat.fat_bert_nq.ppr.apr_algo import csr_get_k_hop_entities, csr_get_k_hop_facts
+                                        csr_get_shortest_path, csr_get_all_paths, \
+                                        csr_topk_fact_extractor, csr_get_k_hop_entities, \
+                                        csr_get_k_hop_facts, csr_get_question_links
 from fat.fat_bert_nq.ppr.kb_csr_io import CsrData
 
 flags = tf.flags
@@ -101,7 +101,7 @@ class ApproximatePageRank(object):
     """
     #tf.logging.info('Start ppr')
     ppr_scores = csr_personalized_pagerank(seeds, self.data.adj_mat_t_csr,
-                                           alpha)
+                                           alpha, self.data.entity_names)
     #tf.logging.info('End ppr')
     sorted_idx = np.argsort(ppr_scores)[::-1]
     extracted_ents = sorted_idx[:topk]
@@ -160,10 +160,8 @@ class ApproximatePageRank(object):
               self.data.entity_names['e'][str(x)]['name']
               for x in extracted_ents
           ]))
-      print(str([
-                        self.data.entity_names['e'][str(x)]['name']
-                                      for x in extracted_ents
-                                                ][0:100]))
+      print(str([(self.data.entity_names['e'][str(x)]['name'], extracted_scores[idx])
+                                      for idx, x in enumerate(extracted_ents)][0:15]))
 
     facts = csr_topk_fact_extractor(self.data.adj_mat_t_csr, self.data.rel_dict,
                                     freq_dict, self.data.entity_names,
@@ -286,7 +284,7 @@ class ApproximatePageRank(object):
       return augmented_path
 
 
-  def get_shortest_path_facts(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None):
+  def get_shortest_path_facts(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None, seperate_diff_paths=False):
       """Get subgraph describing shortest path from question to answer.
 
       Args:
@@ -342,7 +340,10 @@ class ApproximatePageRank(object):
       freq_dict = {x: question_entity_ids.count(x) for x in question_entity_ids}
 
       extracted_paths, num_hops = csr_get_shortest_path(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict, k_hop=FLAGS.k_hop)
-      augmented_facts = self.get_augmented_facts(extracted_paths, self.data.entity_names)
+      if seperate_diff_paths:
+          augmented_facts = self.get_all_path_augmented_facts(extracted_paths, self.data.entity_names)
+      else:
+          augmented_facts = self.get_augmented_facts(extracted_paths, self.data.entity_names)
 
       if FLAGS.verbose_logging:
           print('Extracted facts: ')
@@ -351,6 +352,80 @@ class ApproximatePageRank(object):
           tf.logging.info(str(augmented_facts))
           print("Num hops: "+str(num_hops))
       return augmented_facts, num_hops
+
+  def get_question_links(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None, seperate_diff_paths=False):
+      """Get subgraph describing shortest path from question to answer.
+
+      Args:
+        question_entities: A list of Wikidata entities
+        answer_entities: A list of Wikidata entities
+        passage_entities: A list of Wikidata entities
+
+      Returns:
+        unique_facts: A list of unique facts representing the shortest path.
+      """
+
+      if FLAGS.verbose_logging:
+          print('Getting subgraph')
+          tf.logging.info('Getting subgraph')
+      question_entity_ids = [
+          int(self.data.ent2id[x]) for x in question_entities if x in self.data.ent2id
+      ]
+      question_entity_names = str([self.data.entity_names['e'][str(x)]['name'] for x in question_entity_ids
+                                   ])
+      #if fp is not None:
+      #    fp.write(str(question_entities)+"\t"+question_entity_names+"\t")
+      if FLAGS.verbose_logging:
+          print('Question Entities')
+          tf.logging.info('Question Entities')
+          print(question_entities)
+          print(question_entity_names)
+          tf.logging.info(question_entity_names)
+
+      answer_entity_ids = [
+          int(self.data.ent2id[x]) for x in answer_entities if x in self.data.ent2id
+      ]
+      answer_entity_names = str([self.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids
+                                 ])
+      #if fp is not None:
+      #    fp.write(str(answer_entities)+"\t"+answer_entity_names+"\t")
+      if FLAGS.verbose_logging:
+          print('Answer Entities')
+          tf.logging.info('Answer Entities')
+          print(answer_entities)
+          print(answer_entity_names)
+          tf.logging.info(answer_entity_names)
+      passage_entity_ids = [
+          int(self.data.ent2id[x]) for x in passage_entities if x in self.data.ent2id
+      ]
+      passage_entity_names = str([self.data.entity_names['e'][str(x)]['name'] for x in passage_entity_ids
+                                  ])
+      if FLAGS.verbose_logging:
+          print('Passage Entities')
+          tf.logging.info('Passage Entities')
+          print(passage_entity_names)
+          tf.logging.info(passage_entity_names)
+
+      freq_dict = {x: question_entity_ids.count(x) for x in question_entity_ids}
+
+      extracted_facts, relations = csr_get_question_links(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict)
+      augmented_facts = []
+      relations = []
+      for (subj_id, rel_id, obj_id) in extracted_facts:
+          if obj_id == subj_id:
+              continue
+          subj_name = self.data.entity_names['e'][str(subj_id)]['name']
+          obj_name = self.data.entity_names['e'][str(obj_id)]['name'] if str(obj_id) != 'None' else 'None'
+          rel_name = self.data.entity_names['r'][str(rel_id)]['name'] if str(rel_id) != 'None' else 'None'
+          augmented_facts.append((((subj_id, subj_name), (obj_id, obj_name)),
+                                 ((rel_id, rel_name), None)))
+          relations.append(rel_name)
+      if FLAGS.verbose_logging:
+          print('Extracted facts: ')
+          print(str(augmented_facts))
+          tf.logging.info('Extracted facts: ')
+          tf.logging.info(str(augmented_facts))
+      return augmented_facts, relations
 
   def get_question_to_passage_facts(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None):
       """Get subgraph describing shortest path from question to answer.
