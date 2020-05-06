@@ -1561,7 +1561,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_type_logits = result["answer_type_logits"]
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
-    predicted_score = int(sorted(
+    predicted_score = float(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][1])
     # predicted_label = pred_label
     predicted_label_text = BinarySPAnswerType(predicted_label).name
