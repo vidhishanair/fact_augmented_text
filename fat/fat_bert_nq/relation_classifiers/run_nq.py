@@ -1547,11 +1547,15 @@ def format_and_write_result(result, tokenizer, output_fp):
                 question.append(word)
             elif current == 'facts':
                 facts.append(word)
+            elif current == 'pad':
+                continue 
             else:
                 print("Some exception in current word")
                 print(current)
             if word == '[SEP]' and current == 'question':
                 current = 'facts'
+            elif word == '[PAD]' and current == 'facts':
+                current = 'pad'
             else:
                 continue
         except:
@@ -1710,7 +1714,7 @@ def main(_):
                    "NotIn_SP_num_examples": metrics_counter['NotIn_SP_count']
                    }
         fpr, tpr, thresholds = skl_metrics.roc_curve(y_true, y_pred)
-        auc = metrics.auc(fpr, tpr)
+        auc = skl_metrics.auc(fpr, tpr)
         metrics['AUC'] = auc
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
