@@ -189,7 +189,7 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_string(
     "analyse_incorrect_preds", None,
     "Flag to print incorrect predictions")
-tf.flags.DEFINE_string(
+tf.flags.DEFINE_bool(
     "binary_classification", False,
     "Flag to print incorrect predictions")
 
