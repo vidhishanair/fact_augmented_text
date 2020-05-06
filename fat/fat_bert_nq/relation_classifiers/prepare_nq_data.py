@@ -181,6 +181,7 @@ def main(_):
                                                          FLAGS.split, FLAGS.task_id,
                                                          FLAGS.shard_split_id,
                                                          "tf-record")
+        annotation_data = nq_data_utils.get_annotated_nq_examples(os.path.join(FLAGS.input_data_dir,"dev.tsv"))
         eval_writer = run_nq.FeatureWriter(filename=output_file, is_training=False)
         eval_features = []
         examples_processed = 0
@@ -197,7 +198,7 @@ def main(_):
             tokenizer=tokenizer,
             is_training=False,
             output_fn=append_feature,
-            pretrain_file=pretrain_file)
+            pretrain_file=pretrain_file, annotation_data=annotation_data)
         eval_writer.close()
 
     # For eval - Fianlly merge all shards into 1

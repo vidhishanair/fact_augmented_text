@@ -777,7 +777,7 @@ def read_nq_entry(entry, is_training):
     return examples
 
 
-def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pretrain_file=None):
+def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pretrain_file=None, annotation_data=None):
     """Converts a list of NqExamples into InputFeatures."""
     num_spans_to_ids = collections.defaultdict(list)
     mode = 'train' if is_training else 'dev'
@@ -786,7 +786,7 @@ def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pr
 
     for example in examples:
         example_index = example.example_id
-        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file)
+        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file, annotation_data)
         num_spans_to_ids[len(features)].append(example.qas_id)
 
         for idx, feature in enumerate(features):
@@ -1565,12 +1565,15 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_type_logits = result["answer_type_logits"]
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
+    predicted_score = int(sorted(
+        enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][1])
     # predicted_label = pred_label
     predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
     output_fp.write(question + "\t" + facts + "\t" +
+                    str(predicted_score) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
     return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct
