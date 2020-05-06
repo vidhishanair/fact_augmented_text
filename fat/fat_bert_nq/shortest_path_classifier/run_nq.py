@@ -33,6 +33,7 @@ import enum
 from bert import modeling
 from bert import optimization
 from bert import tokenization
+from sklearn import metrics as skl_metrics
 
 import numpy as np
 import tensorflow as tf
@@ -1068,10 +1069,15 @@ def main(_):
                             'Relevant_and_Necessary_but_Not_Sufficient_count': 0, 'Relevant_and_Necessary_but_Not_Sufficient_correct': 0,
                            'Irrelevant_count': 0, 'Irrelevant_correct': 0}
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
+        y_true = []
+        y_pred = []
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
                 tf.logging.info("Processing example: %d" % (len(all_results)))
             predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct = format_and_write_result(result, tokenizer, output_fp)
+            y_true.append(int(answer_label))
+            y_pred.append(int(predicted_label))
+
             metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             if is_correct:
@@ -1085,6 +1091,10 @@ def main(_):
                        "Irrelevant_accuracy": metrics_counter['Irrelevant_correct']/float(metrics_counter['Irrelevant_count']),
                        "Irrelevant_num_examples": metrics_counter['Irrelevant_count'],
                        }
+            fpr, tpr, thresholds = skl_metrics.roc_curve(y_true, y_pred)
+            auc = metrics.auc(fpr, tpr)
+            metrics['AUC'] = auc
+
         else:
             metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
                    "num_examples": metrics_counter['count'],
