@@ -783,10 +783,9 @@ def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pr
     mode = 'train' if is_training else 'dev'
     apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
                                   shard_id=FLAGS.shard_split_id)
-
     for example in examples:
         example_index = example.example_id
-        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file, annotation_data)
+        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file, annotation_data=annotation_data)
         num_spans_to_ids[len(features)].append(example.qas_id)
 
         for idx, feature in enumerate(features):

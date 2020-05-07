@@ -192,7 +192,7 @@ def main(_):
             examples_processed = len(eval_features)
             if examples_processed % 10 == 0:
                 print("Examples processed: %d", examples_processed)
-
+        print(list(annotation_data.keys())[0])
         _ = run_nq.convert_examples_to_features(
             examples=eval_examples,
             tokenizer=tokenizer,

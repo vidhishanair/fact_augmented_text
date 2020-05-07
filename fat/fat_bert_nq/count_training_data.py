@@ -3,11 +3,11 @@ import tensorflow as tf
 import fat.fat_bert_nq.nq_data_utils as nq_utils
 
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/shortest_path_fixed_data_threehop_only_question_rw20_downweighted_masking_sharded_kb_data_mc48_alpha0.75_mseq512_unk0.02/"
-input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_eq_neg/"
+input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/relev_pos_qrel_eq_neg/"
 
 max_train_tasks = 50
 max_train_tasks = 1
-max_shard_splits = 7
+max_shard_splits = 2
 mode = "train"
 
 max_dev_tasks = 5
