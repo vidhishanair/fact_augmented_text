@@ -877,7 +877,7 @@ def get_related_facts(apr_obj, question_entity_map, answer=None, fp=None):
     #                 str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
     #                 for x in sorted_facts[0:20]
     #             ])
-    sp_relations = [(str(x[1][0][0]), str(apr_obj.data.id2rel(x[1][0][1]))) for x in facts]
+    sp_relations = [(str(apr_obj.data.id2rel[x[1][0][0]]), str(x[1][0][1])) for x in facts]
     #rw_relations = [str(x[1][0][1]) for x in sorted_facts]
     rw_nl_facts = ""
     rw_relations = []
