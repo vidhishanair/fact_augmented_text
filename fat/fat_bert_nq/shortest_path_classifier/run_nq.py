@@ -1092,7 +1092,7 @@ def main(_):
                        "Irrelevant_num_examples": metrics_counter['Irrelevant_count'],
                        }
             fpr, tpr, thresholds = skl_metrics.roc_curve(y_true, y_pred)
-            auc = metrics.auc(fpr, tpr)
+            auc = skl_metrics.auc(fpr, tpr)
             metrics['AUC'] = auc
 
         else:
