@@ -777,7 +777,7 @@ def read_nq_entry(entry, is_training):
     return examples
 
 
-def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pretrain_file=None):
+def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pretrain_file=None, annotation_data=None):
     """Converts a list of NqExamples into InputFeatures."""
     num_spans_to_ids = collections.defaultdict(list)
     mode = 'train' if is_training else 'dev'
@@ -786,7 +786,7 @@ def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pr
 
     for example in examples:
         example_index = example.example_id
-        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file)
+        features, stats = convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file, annotation_data)
         num_spans_to_ids[len(features)].append(example.qas_id)
 
         for idx, feature in enumerate(features):
@@ -1547,11 +1547,15 @@ def format_and_write_result(result, tokenizer, output_fp):
                 question.append(word)
             elif current == 'facts':
                 facts.append(word)
+            elif current == 'pad':
+                continue 
             else:
                 print("Some exception in current word")
                 print(current)
             if word == '[SEP]' and current == 'question':
                 current = 'facts'
+            elif word == '[PAD]' and current == 'facts':
+                current = 'pad'
             else:
                 continue
         except:
@@ -1561,15 +1565,18 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_type_logits = result["answer_type_logits"]
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
+    predicted_score = [(idx, score) for idx, score in enumerate(answer_type_logits)][1][1]
     # predicted_label = pred_label
+    positive_class_scores = answer_type_logits[1]
     predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
     output_fp.write(question + "\t" + facts + "\t" +
+                    str(predicted_score) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
-    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct
+    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct, positive_class_scores
 
 
 def validate_flags_or_throw(bert_config):
@@ -1694,11 +1701,13 @@ def main(_):
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
                 tf.logging.info("Processing example: %d" % (len(all_results)))
-            predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct = format_and_write_result(result, tokenizer, output_fp)
+            predicted_label, predicted_label_text, answer_label, \
+            answer_label_text, is_correct, positive_class_score = format_and_write_result(result, tokenizer, output_fp)
             metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             y_true.append(int(answer_label))
-            y_pred.append(int(predicted_label))
+            # y_pred.append(int(predicted_label))
+            y_pred.append(positive_class_score)
             if is_correct:
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
@@ -1710,7 +1719,7 @@ def main(_):
                    "NotIn_SP_num_examples": metrics_counter['NotIn_SP_count']
                    }
         fpr, tpr, thresholds = skl_metrics.roc_curve(y_true, y_pred)
-        auc = metrics.auc(fpr, tpr)
+        auc = skl_metrics.auc(fpr, tpr)
         metrics['AUC'] = auc
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
