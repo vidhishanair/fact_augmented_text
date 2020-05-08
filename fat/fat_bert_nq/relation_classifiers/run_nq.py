@@ -1160,6 +1160,12 @@ class CreateTFExampleFn(object):
                 return tf.train.Feature(
                     int64_list=tf.train.Int64List(value=list(values)))
 
+            def create_byte_feature(values):
+                return tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value = values))
+
+
+
             #print(len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
             if len(input_feature.input_ids) != 512 or len(input_feature.input_mask) != 512 or len(input_feature.segment_ids) != 512:
                 print(example['id'], len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
@@ -1171,7 +1177,7 @@ class CreateTFExampleFn(object):
             features["input_mask"] = create_int_feature(input_feature.input_mask)
             features["segment_ids"] = create_int_feature(input_feature.segment_ids)
             features["answer_label"] = create_int_feature([input_feature.answer_label])
-            features["relation_id"] = create_int_feature([input_feature.relation_id])
+            features["relation_id"] = create_byte_feature(input_feature.relation_id)
 
             yield tf.train.Example(features=tf.train.Features(
                 feature=features)).SerializeToString(), {}
@@ -1530,6 +1536,10 @@ class FeatureWriter(object):
                 int64_list=tf.train.Int64List(value=list(values)))
             return feature
 
+        def create_byte_feature(values):
+            return tf.train.Feature(
+                bytes_list=tf.train.BytesList(value = values))
+
         features = collections.OrderedDict()
         features["unique_ids"] = create_int_feature([feature.unique_id])
         features["example_ids"] = create_int_feature([feature.example_index])
@@ -1537,7 +1547,7 @@ class FeatureWriter(object):
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
         features["answer_label"] = create_int_feature([feature.answer_label])
-        features["relation_id"] = create_int_feature([feature.relation_id])
+        features["relation_id"] = create_byte_feature(feature.relation_id)
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
         return tf_example
 
@@ -1551,7 +1561,8 @@ def format_and_write_result(result, tokenizer, output_fp):
     question_id = result["unique_ids"]
     question_id = list(map(int, question_id))
     relation_id = result["relation_id"]
-    relation_id = list(map(int, relation_id))
+    relation_id_bytes = list(map(bytes, relation_id))
+    relation_id = ''.join(relation_id_bytes).decode('utf-8')
     question = []
     facts = []
     current = 'question'
