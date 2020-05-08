@@ -877,7 +877,7 @@ def get_related_facts(apr_obj, question_entity_map, answer=None, fp=None):
     #                 str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
     #                 for x in sorted_facts[0:20]
     #             ])
-    sp_relations = [str(x[1][0][1]) for x in facts]
+    sp_relations = [(str(x[1][0][0]), str(apr_obj.data.id2rel(x[1][0][1]))) for x in facts]
     #rw_relations = [str(x[1][0][1]) for x in sorted_facts]
     rw_nl_facts = ""
     rw_relations = []
@@ -967,7 +967,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     print("sp relations: "+str(list(sp_relations)))
     # print(question_entity_names)
     # print(rw_facts)
-    for relation in list(sp_relations):
+    for rel_id, relation in list(sp_relations):
         if FLAGS.relevant_sp_positives_only and not any(relation in s for s in relevant_paths):
             continue
         positive_sp_relations.append(relation)
@@ -998,6 +998,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             answer_label=BinarySPAnswerType.In_SP,
             answer_text="In_SP",
             relation=relation,
+            relation_id=rel_id,
             num_hops=num_hops,
             question_entities=question_entity_names,
             question_entity_ids=question_entity_ids,
@@ -1054,7 +1055,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         question_neg_count = min(positive_counts, len(question_relations))
         question_relations = random.sample(question_relations, question_neg_count)
     print("question negatives: "+str(list(question_relations)))
-    for relation in question_relations:
+    for rel_id, relation in question_relations:
         current_input_tokens = tokens.copy()
         current_segments_ids = segment_ids.copy()
         for token in relation.split():
@@ -1082,6 +1083,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             answer_label=BinarySPAnswerType.NotIn_SP,
             answer_text="Not_In_SP",
             relation=relation,
+            relation_id=rel_id,
             num_hops=num_hops,
             question_entities=question_entity_names,
             question_entity_ids=question_entity_ids,
@@ -1159,14 +1161,17 @@ class CreateTFExampleFn(object):
                     int64_list=tf.train.Int64List(value=list(values)))
 
             #print(len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
-            #if len(input_feature.input_ids) != 512 or len(input_feature.input_mask) != 512 or len(input_feature.segment_ids) != 512:
-            #    exit()
+            if len(input_feature.input_ids) != 512 or len(input_feature.input_mask) != 512 or len(input_feature.segment_ids) != 512:
+                print(example['id'], len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
+                print("Exiting due to len mismatch")
+                exit()
             features = collections.OrderedDict()
             features["unique_ids"] = create_int_feature([input_feature.unique_id])
             features["input_ids"] = create_int_feature(input_feature.input_ids)
             features["input_mask"] = create_int_feature(input_feature.input_mask)
             features["segment_ids"] = create_int_feature(input_feature.segment_ids)
             features["answer_label"] = create_int_feature([input_feature.answer_label])
+            features["relation_id"] = create_int_feature([input_feature.relation_id])
 
             yield tf.train.Example(features=tf.train.Features(
                 feature=features)).SerializeToString(), {}
@@ -1424,6 +1429,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             #     enumerate(answer_type_logits, 1), key=lambda x: x[1], reverse=True)[0]
             predictions = {
                 "unique_ids": unique_ids,
+                "relation_id": features["relation_id"],
                 "answer_type_logits": answer_type_logits,
                 "answer_type_probs": answer_type_probs,
                 "input_ids": input_ids,
@@ -1452,6 +1458,7 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder):
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "answer_label": tf.FixedLenFeature([], tf.int64),
+        "relation_id": tf.FixedLenFeature([], tf.int64),
     }
 
     def _decode_record(record, name_to_features):
@@ -1530,6 +1537,7 @@ class FeatureWriter(object):
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
         features["answer_label"] = create_int_feature([feature.answer_label])
+        features["relation_id"] = create_int_feature([feature.relation_id])
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
         return tf_example
 
@@ -1540,6 +1548,10 @@ class FeatureWriter(object):
 def format_and_write_result(result, tokenizer, output_fp):
     input_ids = result["input_ids"]
     input_ids = map(int, input_ids)
+    question_id = result["unique_ids"]
+    question_id = list(map(int, question_id))
+    relation_id = result["relation_id"]
+    relation_id = list(map(int, relation_id))
     question = []
     facts = []
     current = 'question'
@@ -1577,7 +1589,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
-    output_fp.write(question + "\t" + facts + "\t" +
+    output_fp.write(str(question_id[0])+"\t"+str(relation_id[0])+"\t"+question + "\t" + facts + "\t" +
                     str(predicted_score) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
