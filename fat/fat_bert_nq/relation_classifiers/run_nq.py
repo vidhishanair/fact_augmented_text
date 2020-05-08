@@ -1564,6 +1564,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     predicted_score = float(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][1])
     # predicted_label = pred_label
+    positive_class_scores = answer_type_logits[1]
     predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
@@ -1572,7 +1573,7 @@ def format_and_write_result(result, tokenizer, output_fp):
                     str(predicted_score) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
-    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct
+    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct, positive_class_scores
 
 
 def validate_flags_or_throw(bert_config):
@@ -1697,11 +1698,13 @@ def main(_):
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
                 tf.logging.info("Processing example: %d" % (len(all_results)))
-            predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct = format_and_write_result(result, tokenizer, output_fp)
+            predicted_label, predicted_label_text, answer_label, \
+            answer_label_text, is_correct, positive_class_score = format_and_write_result(result, tokenizer, output_fp)
             metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             y_true.append(int(answer_label))
-            y_pred.append(int(predicted_label))
+            # y_pred.append(int(predicted_label))
+            y_pred.append(positive_class_score)
             if is_correct:
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
