@@ -1185,6 +1185,7 @@ class InputFeatures(object):
                  answer_label,
                  answer_text,
                  relation,
+                 relation_id,
                  num_hops=None,
                  question_entities=None,
                  question_entity_ids=None,
@@ -1199,6 +1200,7 @@ class InputFeatures(object):
         self.answer_label = answer_label
         self.answer_text = answer_text
         self.relation = relation
+        self.relation_id = relation_id
         self.num_hops = num_hops
         self.question_entities = question_entities,
         self.question_entity_ids = question_entity_ids,
@@ -1314,6 +1316,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             input_mask=input_mask,
             segment_ids=segment_ids,
             use_one_hot_embeddings=use_one_hot_embeddings)
+        answer_type_probs = tf.nn.softmax(answer_type_logits)
 
         tvars = tf.trainable_variables()
 
@@ -1422,6 +1425,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             predictions = {
                 "unique_ids": unique_ids,
                 "answer_type_logits": answer_type_logits,
+                "answer_type_probs": answer_type_probs,
                 "input_ids": input_ids,
                 # "predicted_label": pred_label[0],
                 # "predicted_label_score": pred_label[1],
@@ -1542,27 +1546,33 @@ def format_and_write_result(result, tokenizer, output_fp):
     for token in input_ids:
         try:
             word = tokenizer.convert_ids_to_tokens([token])[0]
+            if word == '[SEP]' and current == 'question':
+                current = 'facts'
+            elif word == '[PAD]' and current == 'facts':
+                current = 'pad'
+            else:
+                continue
             if current == 'question':
                 question.append(word)
             elif current == 'facts':
                 facts.append(word)
+            elif current == 'pad':
+                continue 
             else:
                 print("Some exception in current word")
                 print(current)
-            if word == '[SEP]' and current == 'question':
-                current = 'facts'
-            else:
-                continue
+
         except:
             print('didnt tokenize')
     question = " ".join(question).replace(" ##", "")
     facts = " ".join(facts).replace(" ##", "")
     answer_type_logits = result["answer_type_logits"]
+    answer_type_probs = result["answer_type_probs"]
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
-    predicted_score = float(sorted(
-        enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][1])
+    predicted_score = [(idx, score) for idx, score in enumerate(answer_type_probs)][1][1]
     # predicted_label = pred_label
+    positive_class_scores = answer_type_probs[1]
     predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
@@ -1571,7 +1581,7 @@ def format_and_write_result(result, tokenizer, output_fp):
                     str(predicted_score) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
-    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct
+    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct, positive_class_scores
 
 
 def validate_flags_or_throw(bert_config):
@@ -1696,11 +1706,13 @@ def main(_):
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
                 tf.logging.info("Processing example: %d" % (len(all_results)))
-            predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct = format_and_write_result(result, tokenizer, output_fp)
+            predicted_label, predicted_label_text, answer_label, \
+            answer_label_text, is_correct, positive_class_score = format_and_write_result(result, tokenizer, output_fp)
             metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             y_true.append(int(answer_label))
-            y_pred.append(int(predicted_label))
+            # y_pred.append(int(predicted_label))
+            y_pred.append(positive_class_score)
             if is_correct:
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
@@ -1712,7 +1724,7 @@ def main(_):
                    "NotIn_SP_num_examples": metrics_counter['NotIn_SP_count']
                    }
         fpr, tpr, thresholds = skl_metrics.roc_curve(y_true, y_pred)
-        auc = metrics.auc(fpr, tpr)
+        auc = skl_metrics.auc(fpr, tpr)
         metrics['AUC'] = auc
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
