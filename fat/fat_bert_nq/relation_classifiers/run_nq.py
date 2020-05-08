@@ -1186,6 +1186,7 @@ class InputFeatures(object):
                  answer_label,
                  answer_text,
                  relation,
+                 relation_id,
                  num_hops=None,
                  question_entities=None,
                  question_entity_ids=None,
@@ -1200,6 +1201,7 @@ class InputFeatures(object):
         self.answer_label = answer_label
         self.answer_text = answer_text
         self.relation = relation
+        self.relation_id = relation_id
         self.num_hops = num_hops
         self.question_entities = question_entities,
         self.question_entity_ids = question_entity_ids,
@@ -1315,6 +1317,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             input_mask=input_mask,
             segment_ids=segment_ids,
             use_one_hot_embeddings=use_one_hot_embeddings)
+        answer_type_probs = tf.nn.softmax(answer_type_logits)
 
         tvars = tf.trainable_variables()
 
@@ -1423,6 +1426,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             predictions = {
                 "unique_ids": unique_ids,
                 "answer_type_logits": answer_type_logits,
+                "answer_type_probs": answer_type_probs,
                 "input_ids": input_ids,
                 # "predicted_label": pred_label[0],
                 # "predicted_label_score": pred_label[1],
@@ -1543,6 +1547,12 @@ def format_and_write_result(result, tokenizer, output_fp):
     for token in input_ids:
         try:
             word = tokenizer.convert_ids_to_tokens([token])[0]
+            if word == '[SEP]' and current == 'question':
+                current = 'facts'
+            elif word == '[PAD]' and current == 'facts':
+                current = 'pad'
+            else:
+                continue
             if current == 'question':
                 question.append(word)
             elif current == 'facts':
@@ -1552,22 +1562,18 @@ def format_and_write_result(result, tokenizer, output_fp):
             else:
                 print("Some exception in current word")
                 print(current)
-            if word == '[SEP]' and current == 'question':
-                current = 'facts'
-            elif word == '[PAD]' and current == 'facts':
-                current = 'pad'
-            else:
-                continue
+
         except:
             print('didnt tokenize')
     question = " ".join(question).replace(" ##", "")
     facts = " ".join(facts).replace(" ##", "")
     answer_type_logits = result["answer_type_logits"]
+    answer_type_probs = result["answer_type_probs"]
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
-    predicted_score = [(idx, score) for idx, score in enumerate(answer_type_logits)][1][1]
+    predicted_score = [(idx, score) for idx, score in enumerate(answer_type_probs)][1][1]
     # predicted_label = pred_label
-    positive_class_scores = answer_type_logits[1]
+    positive_class_scores = answer_type_probs[1]
     predicted_label_text = BinarySPAnswerType(predicted_label).name
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
