@@ -1160,15 +1160,15 @@ class CreateTFExampleFn(object):
                 return tf.train.Feature(
                     int64_list=tf.train.Int64List(value=list(values)))
 
-            # def create_byte_feature(values):
-            #     return tf.train.Feature(
-            #         bytes_list=tf.train.BytesList(value = [values]))
+            def create_byte_feature(values):
+                return tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value = [values]))
 
-            def create_byte_feature(value):
-                """Returns a bytes_list from a string / byte."""
-                if isinstance(value, type(tf.constant(0))):
-                    value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
-                return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+            # def create_byte_feature(value):
+            #     """Returns a bytes_list from a string / byte."""
+            #     if isinstance(value, type(tf.constant(0))):
+            #         value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
+            #     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
             #print(len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
             if len(input_feature.input_ids) != 512 or len(input_feature.input_mask) != 512 or len(input_feature.segment_ids) != 512:
