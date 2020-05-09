@@ -1162,7 +1162,7 @@ class CreateTFExampleFn(object):
 
             def create_byte_feature(values):
                 return tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value = values))
+                    bytes_list=tf.train.BytesList(value = [values]))
 
 
 
@@ -1177,7 +1177,7 @@ class CreateTFExampleFn(object):
             features["input_mask"] = create_int_feature(input_feature.input_mask)
             features["segment_ids"] = create_int_feature(input_feature.segment_ids)
             features["answer_label"] = create_int_feature([input_feature.answer_label])
-            features["relation_id"] = create_byte_feature(input_feature.relation_id)
+            features["relation_id"] = create_byte_feature(bytes(input_feature.relation_id, 'utf-8'))
 
             yield tf.train.Example(features=tf.train.Features(
                 feature=features)).SerializeToString(), {}
@@ -1538,7 +1538,7 @@ class FeatureWriter(object):
 
         def create_byte_feature(values):
             return tf.train.Feature(
-                bytes_list=tf.train.BytesList(value = values))
+                bytes_list=tf.train.BytesList(value = [values]))
 
         features = collections.OrderedDict()
         features["unique_ids"] = create_int_feature([feature.unique_id])
@@ -1547,7 +1547,7 @@ class FeatureWriter(object):
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
         features["answer_label"] = create_int_feature([feature.answer_label])
-        features["relation_id"] = create_byte_feature(feature.relation_id)
+        features["relation_id"] = create_byte_feature(bytes(feature.relation_id, 'utf-8'))
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
         return tf_example
 
