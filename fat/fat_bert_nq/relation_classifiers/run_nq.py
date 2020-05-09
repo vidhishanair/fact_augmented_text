@@ -1464,7 +1464,7 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder):
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "answer_label": tf.FixedLenFeature([], tf.int64),
-        "relation_id": tf.VarLenFeature(tf.string),
+        "relation_id": tf.FixedLenFeature([], tf.string),
     }
 
     def _decode_record(record, name_to_features):
