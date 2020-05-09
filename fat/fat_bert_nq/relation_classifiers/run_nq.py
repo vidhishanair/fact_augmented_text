@@ -1160,11 +1160,15 @@ class CreateTFExampleFn(object):
                 return tf.train.Feature(
                     int64_list=tf.train.Int64List(value=list(values)))
 
-            def create_byte_feature(values):
-                return tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value = [values]))
+            # def create_byte_feature(values):
+            #     return tf.train.Feature(
+            #         bytes_list=tf.train.BytesList(value = [values]))
 
-
+            def create_byte_feature(value):
+                """Returns a bytes_list from a string / byte."""
+                if isinstance(value, type(tf.constant(0))):
+                    value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
+                return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
             #print(len(input_feature.input_ids), len(input_feature.input_mask), len(input_feature.segment_ids))
             if len(input_feature.input_ids) != 512 or len(input_feature.input_mask) != 512 or len(input_feature.segment_ids) != 512:
@@ -1177,7 +1181,7 @@ class CreateTFExampleFn(object):
             features["input_mask"] = create_int_feature(input_feature.input_mask)
             features["segment_ids"] = create_int_feature(input_feature.segment_ids)
             features["answer_label"] = create_int_feature([input_feature.answer_label])
-            features["relation_id"] = create_byte_feature(bytes(input_feature.relation_id, 'utf-8'))
+            features["relation_id"] = create_byte_feature(input_feature.relation_id.encode('utf-8'))
 
             yield tf.train.Example(features=tf.train.Features(
                 feature=features)).SerializeToString(), {}
