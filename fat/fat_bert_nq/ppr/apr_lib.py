@@ -420,7 +420,7 @@ class ApproximatePageRank(object):
           augmented_facts.append((((subj_id, subj_name), (obj_id, obj_name)),
                                  ((rel_id, rel_name), None)))
           rel_kb_id = self.data.id2rel[rel_id]
-          relations.append((rel_kb_id, rel_name))
+          relations.append((rel_id, rel_name))
       if FLAGS.verbose_logging:
           print('Extracted facts: ')
           print(str(augmented_facts))
