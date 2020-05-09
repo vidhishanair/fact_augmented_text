@@ -1468,7 +1468,7 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder):
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "answer_label": tf.FixedLenFeature([], tf.int64),
-        "relation_id": tf.FixedLenFeature([], tf.string),
+        "relation_id": tf.FixedLenFeature([], tf.int64),
     }
 
     def _decode_record(record, name_to_features):
@@ -1551,7 +1551,7 @@ class FeatureWriter(object):
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
         features["answer_label"] = create_int_feature([feature.answer_label])
-        features["relation_id"] = create_byte_feature(bytes(feature.relation_id, 'utf-8'))
+        features["relation_id"] = create_int_feature(feature.relation_id)
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
         return tf_example
 
