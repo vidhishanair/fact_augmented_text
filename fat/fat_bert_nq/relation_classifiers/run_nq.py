@@ -966,8 +966,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     positive_sp_relations = []
     print(example.questions[-1])
     print("sp relations: "+str(list(sp_relations)))
-    # print(question_entity_names)
-    # print(rw_facts)
+
     for rel_id, relation in list(sp_relations):
         if FLAGS.relevant_sp_positives_only and not any(relation in s for s in relevant_paths):
             continue
@@ -982,8 +981,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
         current_segments_ids.append(1)
         input_ids = tokenizer.convert_tokens_to_ids(current_input_tokens)
         input_mask = [1] * len(input_ids)
-        # input_mask = [0 if item == 0 else 1 for item in input_ids]
-        # Zero-pad up to the sequence length.
         padding = [0] * (FLAGS.max_seq_length - len(input_ids))
         input_ids.extend(padding)
         input_mask.extend(padding)
@@ -1014,7 +1011,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     if positive_counts == 0:
         return [], []
     rw_relations = []
-    question_relations = list(set(question_relations) - set(positive_sp_relations))
+    question_relations = [(rel_id, relation) for rel_id, relation in question_relations if relation not in positive_sp_relations]
     if is_training and FLAGS.include_unknowns > 0:
         # rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
         # print("rw negatives: "+str(list(rw_relations)))
