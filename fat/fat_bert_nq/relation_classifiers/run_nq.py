@@ -1716,8 +1716,8 @@ def main(_):
         if not FLAGS.output_prediction_file:
             raise ValueError(
                 "--output_prediction_file must be defined in predict mode.")
-        print("Evaluating 1000 steps now")
-        estimator.evaluate(input_fn=train_input_fn, steps=1000)
+        #print("Evaluating 1000 steps now")
+        #estimator.evaluate(input_fn=train_input_fn, steps=1000)
 
         eval_filename = FLAGS.eval_precomputed_file
 
