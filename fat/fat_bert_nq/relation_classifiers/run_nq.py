@@ -1611,7 +1611,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
-    output_fp.write(str(question_id[0])+"\t"+str(relation_id[0])+"\t"+question + "\t" + facts + "\t" +
+    output_fp.write(str(question_id)+"\t"+str(relation_id)+"\t"+question + "\t" + facts + "\t" +
                     str(predicted_score) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
