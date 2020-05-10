@@ -1317,6 +1317,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             tf.logging.info("  name = %s, shape = %s" % (name, features[name].shape))
 
         unique_ids = features["unique_ids"]
+        example_ids = features["example_ids"]
         input_ids = features["input_ids"]
         input_mask = features["input_mask"]
         segment_ids = features["segment_ids"]
@@ -1439,6 +1440,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
             #     enumerate(answer_type_logits, 1), key=lambda x: x[1], reverse=True)[0]
             predictions = {
                 "unique_ids": unique_ids,
+                "example_ids": example_ids,
                 "relation_id": features["relation_id"],
                 "answer_type_logits": answer_type_logits,
                 "answer_type_probs": answer_type_probs,
@@ -1562,11 +1564,11 @@ class FeatureWriter(object):
 def format_and_write_result(result, tokenizer, output_fp):
     input_ids = result["input_ids"]
     input_ids = map(int, input_ids)
-    question_id = result["unique_ids"]
-    question_id = list(map(int, question_id))
+    question_id = result["example_ids"]
+    question_id = question_id.item()
     relation_id = result["relation_id"]
-    relation_id_bytes = list(map(bytes, relation_id))
-    relation_id = ''.join(relation_id_bytes).decode('utf-8')
+    # relation_id_bytes = list(map(bytes, relation_id))
+    relation_id = relation_id.item()
     question = []
     facts = []
     current = 'question'
