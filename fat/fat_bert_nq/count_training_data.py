@@ -17,8 +17,9 @@ mode = "dev"
 
 name_to_features = {
               "unique_ids": tf.FixedLenFeature([], tf.int64),
+              "example_ids": tf.FixedLenFeature([], tf.int64),
               "answer_label": tf.FixedLenFeature([], tf.int64),
-              "relation_id": tf.FixedLenFeature([], tf.string),
+              "relation_id": tf.FixedLenFeature([], tf.int64),
               "input_ids": tf.FixedLenFeature([512], tf.int64),
               "input_mask": tf.FixedLenFeature([512], tf.int64),
               "segment_ids": tf.FixedLenFeature([512], tf.int64),}
@@ -54,6 +55,13 @@ for task in range(max_dev_tasks):
     print("Reading file %s", input_file)
     if not os.path.exists(input_file):
         continue
+    for record in tf.python_io.tf_record_iterator(input_file):
+        example = tf.parse_single_example(record, name_to_features)
+        #example = tf.train.Example.FromString(record)
+        #print(example)
+        relation_id = example["relation_id"]
+        example_id = example["example_ids"]
+        print(example_id)
     #instances.extend([
     #    tf.train.Example.FromString(r)
     #    for r in tf.python_io.tf_record_iterator(input_file)
