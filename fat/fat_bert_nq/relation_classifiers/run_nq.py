@@ -877,7 +877,8 @@ def get_related_facts(apr_obj, question_entity_map, answer=None, fp=None):
     #                 str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
     #                 for x in sorted_facts[0:20]
     #             ])
-    sp_relations = [(str(apr_obj.data.id2rel[x[1][0][0]]), str(x[1][0][1])) for x in facts]
+    #sp_relations = [(str(apr_obj.data.id2rel[x[1][0][0]]), str(x[1][0][1])) for x in facts]
+    sp_relations = [(x[1][0][0], str(x[1][0][1])) for x in facts]
     #rw_relations = [str(x[1][0][1]) for x in sorted_facts]
     rw_nl_facts = ""
     rw_relations = []
@@ -1181,7 +1182,8 @@ class CreateTFExampleFn(object):
             features["input_mask"] = create_int_feature(input_feature.input_mask)
             features["segment_ids"] = create_int_feature(input_feature.segment_ids)
             features["answer_label"] = create_int_feature([input_feature.answer_label])
-            features["relation_id"] = create_byte_feature(input_feature.relation_id.encode('utf-8'))
+            features["relation_id"] = create_int_feature([input_feature.relation_id])
+            #features["relation_id"] = create_byte_feature(input_feature.relation_id.encode('utf-8'))
 
             yield tf.train.Example(features=tf.train.Features(
                 feature=features)).SerializeToString(), {}
@@ -1553,7 +1555,8 @@ class FeatureWriter(object):
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
         features["answer_label"] = create_int_feature([feature.answer_label])
-        features["relation_id"] = create_int_feature(feature.relation_id)
+        features["relation_id"] = create_int_feature([feature.relation_id])
+        #features["relation_id"] = create_byte_feature(bytes(feature.relation_id, 'utf-8'))
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
         return tf_example
 
