@@ -1582,7 +1582,7 @@ def format_and_write_result(result, tokenizer, output_fp):
             word = tokenizer.convert_ids_to_tokens([token])[0]
             if word == '[SEP]' and current == 'question':
                 current = 'facts'
-            elif word == '[PAD]' and current == 'facts':
+            elif word == '[SEP]' and current == 'facts':
                 current = 'pad'
             else:
                 continue
