@@ -82,6 +82,14 @@ flags.DEFINE_string(
             "metrics_file", None,
                 "Where to print predictions in NQ prediction format, to be passed to"
                     "natural_questions.nq_eval.")
+flags.DEFINE_string(
+    "relation_classifier_op", None,
+    "Where to print predictions in NQ prediction format, to be passed to"
+    "natural_questions.nq_eval.")
+flags.DEFINE_string(
+    "rel2id_file", None,
+    "Where to print predictions in NQ prediction format, to be passed to"
+    "natural_questions.nq_eval.")
 
 flags.DEFINE_string(
     "output_prediction_file", None,
@@ -1549,7 +1557,7 @@ class FeatureWriter(object):
 
         features = collections.OrderedDict()
         features["unique_ids"] = create_int_feature([feature.unique_id])
-
+        features["example_ids"] = create_int_feature([feature.example_index])
         features["input_ids"] = create_int_feature(feature.input_ids)
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
@@ -1605,7 +1613,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_type_probs = result["answer_type_probs"]
     predicted_label = int(sorted(
         enumerate(answer_type_logits), key=lambda x: x[1], reverse=True)[0][0])
-    predicted_score = [(idx, score) for idx, score in enumerate(answer_type_probs)][1][1]
+    # predicted_score = [(idx, score) for idx, score in enumerate(answer_type_probs)][1][1]
     # predicted_label = pred_label
     positive_class_scores = answer_type_probs[1]
     predicted_label_text = BinarySPAnswerType(predicted_label).name
@@ -1613,10 +1621,11 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
     output_fp.write(str(question_id)+"\t"+str(relation_id)+"\t"+question + "\t" + facts + "\t" +
-                    str(predicted_score) + "\t" +
+                    str(positive_class_scores) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
-    return predicted_label, predicted_label_text, answer_label, answer_label_text, is_correct, positive_class_scores
+    return predicted_label, predicted_label_text, answer_label, answer_label_text, \
+           is_correct, positive_class_scores, question_id, relation_id
 
 
 def validate_flags_or_throw(bert_config):
@@ -1735,14 +1744,20 @@ def main(_):
         metrics_counter = {'count': 0, 'correct': 0,
                            'In_SP_count': 0, 'In_SP_correct': 0,
                            'NotIn_SP_count': 0, 'NotIn_SP_correct': 0}
+        rel2id_fp = tf.gfile.Open(FLAGS.rel2id_file, "w")
+        with gzip.GzipFile(fileobj=tf.gfile.Open(rel2id_fp, 'rb')) as op4:
+            rel2id = json.load(op4)
+            op4.close()
+        id2rel = {idx: ent for ent, idx in rel2id.items()}
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
         y_true = []
         y_pred = []
+        relation_class_outputs = {}
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
                 tf.logging.info("Processing example: %d" % (len(all_results)))
             predicted_label, predicted_label_text, answer_label, \
-            answer_label_text, is_correct, positive_class_score = format_and_write_result(result, tokenizer, output_fp)
+            answer_label_text, is_correct, positive_class_score, question_id, relation_id = format_and_write_result(result, tokenizer, output_fp)
             metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             y_true.append(int(answer_label))
@@ -1751,6 +1766,13 @@ def main(_):
             if is_correct:
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
+            if question_id not in relation_class_outputs:
+                relation_class_outputs[question_id] = {}
+            relation_class_outputs[question_id][id2rel[relation_id]] = positive_class_score
+
+        relclass_fp = tf.gfile.Open(FLAGS.relation_classifier_op, "w")
+        json.dump(relation_class_outputs, relclass_fp, indent=4)
+
         metrics = {"accuracy": metrics_counter['correct']/float(metrics_counter['count']),
                    "num_examples": metrics_counter['count'],
                    "In_SP_accuracy": metrics_counter['In_SP_correct']/float(metrics_counter['In_SP_count']),
