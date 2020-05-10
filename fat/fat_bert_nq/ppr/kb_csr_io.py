@@ -135,7 +135,7 @@ class CsrData(object):
                    (rel, str(kb[rel]['name'])),
                    (obj, str(kb[obj]['name'])))
 
-  def create_and_save_csr_data(self, full_wiki, decompose_ppv, files_dir, sub_entities=None, mode=None, task_id=None, shard_id=None, question_id=None, question_embedding=None, relation_embeddings=None, sub_facts=None):
+  def create_and_save_csr_data(self, full_wiki, decompose_ppv, files_dir, sub_entities=None, mode=None, task_id=None, shard_id=None, question_id=None, question_embedding=None, relation_embeddings=None, relation_scores=None, sub_facts=None):
     """Return the PPR vector for the given seed and adjacency matrix.
 
       Algorithm : Parses sling KB - extracts subj, obj, rel triple and stores
@@ -255,18 +255,24 @@ class CsrData(object):
         m = sparse.csr_matrix((np.ones(
             (len(row_ones),)), (np.array(row_ones), np.array(col_ones))),
                               shape=(num_entities, num_entities))
-        relation_map[rel] = normalize(m, norm='l1', axis=1)
+        # relation_map[rel] = normalize(m, norm='l1', axis=1)
         relation_map[rel] = m
         # TODO(vidhisha) : Add this during Relation Training
         if FLAGS.relation_weighting:
           # relation_embeddings = pkl.load(open(file_paths['rel_emb'], 'rb'))
-          if rel not in relation_embeddings:
-              score = self.NOTFOUNDSCORE
+          if FLAGS.rel_classifier_scores:
+              if rel not in relation_scores:
+                  score = self.NOTFOUNDSCORE
+              else:
+                  score = float(relation_scores[rel])
           else:
-              score = np.dot(question_embedding, relation_embeddings[rel]) / (
-                np.linalg.norm(question_embedding) *
-                np.linalg.norm(relation_embeddings[rel]))
-          assert score <=1 and score >=-1
+              if rel not in relation_embeddings:
+                  score = self.NOTFOUNDSCORE
+              else:
+                  score = np.dot(question_embedding, relation_embeddings[rel]) / (
+                    np.linalg.norm(question_embedding) *
+                    np.linalg.norm(relation_embeddings[rel]))
+              assert score <=1 and score >=-1
           relation_map[rel] = relation_map[rel] * np.power(score, self.EXPONENT)
       adj_mat = sum(relation_map.values()) / len(relation_map)
       #print(np.isnan(adj_mat.toarray()))
