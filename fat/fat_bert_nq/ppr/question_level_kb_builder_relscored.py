@@ -45,6 +45,8 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('nq_dir', '/remote/bones/user/vbalacha/datasets/ent_linked_nq_new/', 'Read nq data to extract entities')
 flags.DEFINE_string('question_emb_dir', '/remote/bones/user/vbalacha/datasets/nq_question_embeddings/', 'input questions dict')
 flags.DEFINE_string('relation_emb_file', '/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/files/question_downweight_three_hop_kb/csr_relation_embeddings.pkl', 'input questions dict')
+flags.DEFINE_string('que_rel_score_dir', '/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/files/relev_classifier_scores/rel_class_alldev.json', 'input questions dict')
+flags.DEFINE_bool('rel_classifier_scores', 'False', 'input questions dict')
 flags.DEFINE_integer("shard_split_id", None,
                      "Train and dev shard to read from and write to.")
 
@@ -122,7 +124,7 @@ if __name__ == '__main__':
     relation_embeddings = pkl.load(open(FLAGS.relation_emb_file, 'rb'))
     que_rel_scores = None
     if FLAGS.rel_classifier_scores:
-        question_relation_score_file = nq_data_utils.get_sharded_filename(FLAGS.que_rel_score_dir, FLAGS.split, FLAGS.task_id, FLAGS.shard_split_id, 'relscores.json')
+        question_relation_score_file = FLAGS.que_rel_score_dir
         que_rel_scores = json.load(open(question_relation_score_file))
 
     max_tasks = {"train": 50, "dev": 5}
@@ -160,6 +162,8 @@ if __name__ == '__main__':
                     relation_scores = None
                     if FLAGS.rel_classifier_scores:
                         relation_scores = que_rel_scores[example_id]
+                        print(relation_scores)
+                        exit()
 
                     csr_data = CsrData()
                     csr_data.create_and_save_csr_data(full_wiki=FLAGS.full_wiki,
