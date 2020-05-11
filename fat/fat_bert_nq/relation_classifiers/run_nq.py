@@ -1744,9 +1744,8 @@ def main(_):
         metrics_counter = {'count': 0, 'correct': 0,
                            'In_SP_count': 0, 'In_SP_correct': 0,
                            'NotIn_SP_count': 0, 'NotIn_SP_correct': 0}
-        rel2id_fp = tf.gfile.Open(FLAGS.rel2id_file, "w")
-        with gzip.GzipFile(fileobj=tf.gfile.Open(rel2id_fp, 'rb')) as op4:
-            rel2id = json.load(op4)
+        with gzip.GzipFile(fileobj=tf.gfile.Open(FLAGS.rel2id_file, 'rb')) as op4:
+            rel2id = json.loads(op4.read().decode('utf-8'))
             op4.close()
         id2rel = {idx: ent for ent, idx in rel2id.items()}
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
@@ -1767,8 +1766,8 @@ def main(_):
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
             if question_id not in relation_class_outputs:
-                relation_class_outputs[question_id] = {}
-            relation_class_outputs[question_id][id2rel[relation_id]] = positive_class_score
+                relation_class_outputs[str(question_id)] = {}
+            relation_class_outputs[str(question_id)][id2rel[relation_id]] = str(positive_class_score)
 
         relclass_fp = tf.gfile.Open(FLAGS.relation_classifier_op, "w")
         json.dump(relation_class_outputs, relclass_fp, indent=4)
