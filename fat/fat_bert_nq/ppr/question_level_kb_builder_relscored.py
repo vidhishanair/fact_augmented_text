@@ -50,6 +50,8 @@ flags.DEFINE_bool('rel_classifier_scores', 'False', 'input questions dict')
 flags.DEFINE_integer("shard_split_id", None,
                      "Train and dev shard to read from and write to.")
 
+flags.DEFINE_string('output_apr_files_dir', '', 'input questions dict')
+
 flags.DEFINE_string(
     "split", "train",
     "Train and dev split to read from and write to. Accepted values: ['train', 'dev', 'test']"
@@ -168,7 +170,7 @@ if __name__ == '__main__':
                     csr_data = CsrData()
                     csr_data.create_and_save_csr_data(full_wiki=FLAGS.full_wiki,
                                                       decompose_ppv=FLAGS.decompose_ppv,
-                                                      files_dir=FLAGS.apr_files_dir,
+                                                      files_dir=FLAGS.output_apr_files_dir,
                                                       sub_entities=k_hop_entities,
                                                       question_id=example_id,
                                                       question_embedding=question_embedding,
