@@ -769,7 +769,9 @@ def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pr
   """Converts a list of NqExamples into InputFeatures."""
   num_spans_to_ids = collections.defaultdict(list)
   mode = 'train' if is_training else 'dev'
-  apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
+  apr_obj = None
+  if not FLAGS.use_question_level_apr_data:
+      apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
                                 shard_id=FLAGS.shard_split_id)
 
   for example in examples:
@@ -1586,7 +1588,9 @@ class CreateTFExampleFn(object):
     self.tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
     mode = 'train' if is_training else 'dev'
-    self.apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
+    self.apr_obj = None
+    if not FLAGS.use_question_level_apr_data:
+        self.apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
                                        shard_id=FLAGS.shard_split_id)
 
   def process(self, example, pretrain_file=None, fixed_train_list=None):
