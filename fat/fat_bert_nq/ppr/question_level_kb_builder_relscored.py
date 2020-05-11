@@ -45,8 +45,12 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('nq_dir', '/remote/bones/user/vbalacha/datasets/ent_linked_nq_new/', 'Read nq data to extract entities')
 flags.DEFINE_string('question_emb_dir', '/remote/bones/user/vbalacha/datasets/nq_question_embeddings/', 'input questions dict')
 flags.DEFINE_string('relation_emb_file', '/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/files/question_downweight_three_hop_kb/csr_relation_embeddings.pkl', 'input questions dict')
+flags.DEFINE_string('que_rel_score_dir', '/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/files/relev_classifier_scores/rel_class_alldev.json', 'input questions dict')
+flags.DEFINE_bool('rel_classifier_scores', 'False', 'input questions dict')
 flags.DEFINE_integer("shard_split_id", None,
                      "Train and dev shard to read from and write to.")
+
+flags.DEFINE_string('output_apr_files_dir', '', 'input questions dict')
 
 flags.DEFINE_string(
     "split", "train",
@@ -122,7 +126,7 @@ if __name__ == '__main__':
     relation_embeddings = pkl.load(open(FLAGS.relation_emb_file, 'rb'))
     que_rel_scores = None
     if FLAGS.rel_classifier_scores:
-        question_relation_score_file = nq_data_utils.get_sharded_filename(FLAGS.que_rel_score_dir, FLAGS.split, FLAGS.task_id, FLAGS.shard_split_id, 'relscores.json')
+        question_relation_score_file = FLAGS.que_rel_score_dir
         que_rel_scores = json.load(open(question_relation_score_file))
 
     max_tasks = {"train": 50, "dev": 5}
@@ -143,7 +147,8 @@ if __name__ == '__main__':
                     continue
                 for counter, item in nq_data.items():
                     entities = []
-                    example_id = item['example_id']
+                    example_id = int(item['example_id'])
+                    half_qid = np.int32(example_id)
                     question_embedding = None
                     if FLAGS.relation_weighting:
                         question_embedding = question_embeddings[example_id]
@@ -159,12 +164,16 @@ if __name__ == '__main__':
                     #print("Size of two hop facts: %d", len(k_hop_facts))
                     relation_scores = None
                     if FLAGS.rel_classifier_scores:
-                        relation_scores = que_rel_scores[example_id]
+                        if str(half_qid) not in que_rel_scores:
+                            print(example_id, half_qid)
+                            print(item['question_text'], entities)
+                            continue
+                        relation_scores = que_rel_scores[str(half_qid)]
 
                     csr_data = CsrData()
                     csr_data.create_and_save_csr_data(full_wiki=FLAGS.full_wiki,
                                                       decompose_ppv=FLAGS.decompose_ppv,
-                                                      files_dir=FLAGS.apr_files_dir,
+                                                      files_dir=FLAGS.output_apr_files_dir,
                                                       sub_entities=k_hop_entities,
                                                       question_id=example_id,
                                                       question_embedding=question_embedding,

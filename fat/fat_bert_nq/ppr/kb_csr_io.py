@@ -265,6 +265,7 @@ class CsrData(object):
                   score = self.NOTFOUNDSCORE
               else:
                   score = float(relation_scores[rel])
+              #print(rel, score)
           else:
               if rel not in relation_embeddings:
                   score = self.NOTFOUNDSCORE

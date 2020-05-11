@@ -61,7 +61,17 @@ for task in range(max_dev_tasks):
         #print(example)
         relation_id = example["relation_id"]
         example_id = example["example_ids"]
-        #print(example_id)
+        print(example_id)
+        for name in list(example.keys()):
+            t = example[name]
+            if t.dtype == tf.int64:
+                t = tf.to_int32(t)
+            example[name] = t
+        example_id = example["example_ids"]
+        print(example_id)
+        print(tf.to_int64(example_id))
+        exit()
+
     #instances.extend([
     #    tf.train.Example.FromString(r)
     #    for r in tf.python_io.tf_record_iterator(input_file)
