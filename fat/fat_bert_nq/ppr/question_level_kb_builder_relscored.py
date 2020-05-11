@@ -147,7 +147,8 @@ if __name__ == '__main__':
                     continue
                 for counter, item in nq_data.items():
                     entities = []
-                    example_id = item['example_id']
+                    example_id = int(item['example_id'])
+                    half_qid = np.int32(example_id)
                     question_embedding = None
                     if FLAGS.relation_weighting:
                         question_embedding = question_embeddings[example_id]
@@ -163,9 +164,11 @@ if __name__ == '__main__':
                     #print("Size of two hop facts: %d", len(k_hop_facts))
                     relation_scores = None
                     if FLAGS.rel_classifier_scores:
-                        relation_scores = que_rel_scores[example_id]
-                        print(relation_scores)
-                        exit()
+                        if str(half_qid) not in que_rel_scores:
+                            print(example_id, half_qid)
+                            print(item['question_text'], entities)
+                            continue
+                        relation_scores = que_rel_scores[str(half_qid)]
 
                     csr_data = CsrData()
                     csr_data.create_and_save_csr_data(full_wiki=FLAGS.full_wiki,
