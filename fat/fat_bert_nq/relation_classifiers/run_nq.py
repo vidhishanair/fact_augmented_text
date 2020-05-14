@@ -1751,6 +1751,7 @@ def main(_):
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
         y_true = []
         y_pred = []
+        y_pred_label = []
         relation_class_outputs = {}
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
@@ -1760,7 +1761,7 @@ def main(_):
             metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             y_true.append(int(answer_label))
-            # y_pred.append(int(predicted_label))
+            y_pred_label.append(int(predicted_label))
             y_pred.append(positive_class_score)
             if is_correct:
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
@@ -1784,6 +1785,9 @@ def main(_):
         fpr, tpr, thresholds = skl_metrics.roc_curve(y_true, y_pred)
         auc = skl_metrics.auc(fpr, tpr)
         metrics['AUC'] = auc
+        tn, fp, fn, tp = skl_metrics.confusion_matrix(y_true, y_pred_label).ravel()
+        metrics['confusion'] = {'tn':str(tn), 'tp':str(tp), 'fn':str(fn), 'fp':str(fp)}
+        print(metrics)
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
 
