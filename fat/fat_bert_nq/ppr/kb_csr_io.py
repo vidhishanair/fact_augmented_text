@@ -57,7 +57,7 @@ class CsrData(object):
     self.rel_dict = None  # CSR ExE sparse matrix where values are rel_id
     self.ent2id = None  # Python dictionary mapping entities to integer ids.
     self.entity_names = None  # dict mapping entity ids to entity surface forms
-    self.NOTFOUNDSCORE = 0
+    self.NOTFOUNDSCORE = 0.000005
     self.EXPONENT = 2.
 
   def get_file_names(self, full_wiki, files_dir, shard_level=False, mode=None, task_id=None, shard_id=None, question_id=None):
@@ -161,7 +161,7 @@ class CsrData(object):
       shard_level = False
     file_paths = self.get_file_names(full_wiki, files_dir, shard_level, mode, task_id, shard_id, question_id)
     tf.logging.info('KB Related filenames: %s'%(file_paths))
-    print(file_paths)
+    #print(file_paths)
     tf.logging.info('Loading KB')
     # kb = sling_utils.get_kb(file_paths['kb_fname'])
 
@@ -240,15 +240,15 @@ class CsrData(object):
     loaded_num_entities = len(id2ent)
     num_entities = loaded_num_entities
     #assert loaded_num_entities == num_entities  # Sanity check for processing
-    print('%d entities loaded' % loaded_num_entities)
-    print("Building rel dict")
+    #print('%d entities loaded' % loaded_num_entities)
+    #print("Building rel dict")
     rel_dict = sparse.dok_matrix((num_entities, num_entities), dtype=np.int16)
     for subj, relations in tmp_rdict.items():
       for obj, rel in relations.items():
         rel_dict[(subj, obj)] = rel
     del tmp_rdict
 
-    print('Building Sparse Matrix')
+    #print('Building Sparse Matrix')
     if decompose_ppv and len(relation_map)>0:  # Relation Level Sparse Matrices to weight accordingly
       for rel in relation_map:
         row_ones, col_ones = relation_map[rel]
@@ -336,32 +336,32 @@ class CsrData(object):
       shard_level = True
     else:
       shard_level = False
-    tf.logging.info("""Load saved KB files.""")
+    #tf.logging.info("""Load saved KB files.""")
     file_paths = self.get_file_names(full_wiki, files_dir, shard_level, mode, task_id, shard_id, question_id)
-    tf.logging.info('KB Related filenames: %s'%(file_paths))
-    print(file_paths)
-    tf.logging.info('Loading adj_mat')
+    #tf.logging.info('KB Related filenames: %s'%(file_paths))
+    #print(file_paths)
+    #tf.logging.info('Loading adj_mat')
     self.adj_mat = self.safe_load_npz(file_paths['adj_mat_fname'])
-    tf.logging.info('Loading rel_dict')
+    #tf.logging.info('Loading rel_dict')
     self.rel_dict = self.safe_load_npz(file_paths['rel_dict_fname'])
 
-    tf.logging.info('Loading ent_name')
+    #tf.logging.info('Loading ent_name')
     self.entity_names = self.load_json_gz(file_paths['entity_names_fname'])
 
-    tf.logging.info('Loading ent2id')
+    #tf.logging.info('Loading ent2id')
     self.ent2id = self.load_json_gz(file_paths['ent2id_fname'])
 
-    tf.logging.info('Loading id2ent')
+    #tf.logging.info('Loading id2ent')
     self.id2ent = self.load_json_gz(file_paths['id2ent_fname'])
 
-    tf.logging.info('Loading rel2id')
+    #tf.logging.info('Loading rel2id')
     self.rel2id = self.load_json_gz(file_paths['rel2id_fname'])
     self.id2rel = {idx: ent for ent, idx in self.rel2id.items()}
 
     # Performing this once instead of for every iteration
     self.adj_mat_t_csr = self.adj_mat.transpose().tocsr()
     del self.adj_mat
-    tf.logging.info('Entities loaded: %d', len(list(self.ent2id.keys())))
+    #tf.logging.info('Entities loaded: %d', len(list(self.ent2id.keys())))
 
 if __name__ == '__main__':
   print(FLAGS.full_wiki)

@@ -73,7 +73,7 @@ class ApproximatePageRank(object):
 
   def get_khop_facts(self, seeds, k_hop):
       seeds = list(set(seeds))
-      print("id2ent size: %d", len(self.data.id2ent))
+      #print("id2ent size: %d", len(self.data.id2ent))
       entity_ids = [
           int(self.data.ent2id[x]) for x in seeds if x in self.data.ent2id
       ]

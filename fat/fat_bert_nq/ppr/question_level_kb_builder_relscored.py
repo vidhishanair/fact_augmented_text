@@ -133,6 +133,7 @@ if __name__ == '__main__':
     max_shards = {"train": 7, "dev": 17}
     apr = ApproximatePageRank(FLAGS.split, FLAGS.task_id, FLAGS.shard_split_id)
     empty_ents = 0
+    proc_q = 0
     for mode in [FLAGS.split]:
         # Parse all shards in each mode
         # Currently sequentially, can be parallelized later
@@ -164,12 +165,17 @@ if __name__ == '__main__':
                     #print("Size of two hop facts: %d", len(k_hop_facts))
                     relation_scores = None
                     if FLAGS.rel_classifier_scores:
+                        print(example_id, half_qid)
                         if str(half_qid) not in que_rel_scores:
+                            print("not in qid")
                             print(example_id, half_qid)
                             print(item['question_text'], entities)
                             continue
+                        print(item['question_text'], entities)
+                        print(que_rel_scores[str(half_qid)])
+                        #print([(rel ,apr.data.entity_names['r'][str(apr.data.rel2id[rel])], score) for rel, score in list(que_rel_scores[str(half_qid)].items())])
                         relation_scores = que_rel_scores[str(half_qid)]
-
+                    proc_q +=1
                     csr_data = CsrData()
                     csr_data.create_and_save_csr_data(full_wiki=FLAGS.full_wiki,
                                                       decompose_ppv=FLAGS.decompose_ppv,
@@ -182,5 +188,6 @@ if __name__ == '__main__':
                                                       sub_facts=k_hop_facts)
                     #print('Time taken for CSR: '+str(time.time() - st))
     print("No ent questions: "+str(empty_ents))
+    print("No proc q: "+str(proc_q))
                             
 

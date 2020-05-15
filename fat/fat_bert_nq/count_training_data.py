@@ -2,8 +2,11 @@ import os
 import tensorflow as tf
 import fat.fat_bert_nq.nq_data_utils as nq_utils
 tf.compat.v1.enable_eager_execution()
-#input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/shortest_path_fixed_data_threehop_only_question_rw20_downweighted_masking_sharded_kb_data_mc48_alpha0.75_mseq512_unk0.02/"
-input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_all_neg_nopos_wintrelid/"
+#input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/annotation_unk-1/"
+#input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_all_neg_nopos_wintrelid/"
+#input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_all_neg_nopos_wintrelid/"
+#input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_eq_neg_wintrelid/"
+input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/shortest_path_relsp_scores_rw20_masking_mc48_alpha0.75_mseq512_unk0.02"
 
 max_train_tasks = 50
 #max_train_tasks = 1
@@ -55,22 +58,22 @@ for task in range(max_dev_tasks):
     print("Reading file %s", input_file)
     if not os.path.exists(input_file):
         continue
-    for record in tf.python_io.tf_record_iterator(input_file):
-        example = tf.parse_single_example(record, name_to_features)
-        #example = tf.train.Example.FromString(record)
-        #print(example)
-        relation_id = example["relation_id"]
-        example_id = example["example_ids"]
-        print(example_id)
-        for name in list(example.keys()):
-            t = example[name]
-            if t.dtype == tf.int64:
-                t = tf.to_int32(t)
-            example[name] = t
-        example_id = example["example_ids"]
-        print(example_id)
-        print(tf.to_int64(example_id))
-        exit()
+    # for record in tf.python_io.tf_record_iterator(input_file):
+    #     example = tf.parse_single_example(record, name_to_features)
+    #     #example = tf.train.Example.FromString(record)
+    #     #print(example)
+    #     relation_id = example["relation_id"]
+    #     example_id = example["example_ids"]
+    #     print(example_id)
+    #     for name in list(example.keys()):
+    #         t = example[name]
+    #         if t.dtype == tf.int64:
+    #             t = tf.to_int32(t)
+    #         example[name] = t
+    #     example_id = example["example_ids"]
+    #     print(example_id)
+    #     print(tf.to_int64(example_id))
+    #     exit()
 
     #instances.extend([
     #    tf.train.Example.FromString(r)
