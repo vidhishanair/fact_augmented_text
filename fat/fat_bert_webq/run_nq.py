@@ -772,8 +772,8 @@ def convert_examples_to_features(examples, tokenizer, is_training, output_fn, pr
   num_spans_to_ids = collections.defaultdict(list)
   mode = 'train' if is_training else 'dev'
   apr_obj = None
-  #if not FLAGS.use_question_level_apr_data:
-  apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
+  if not FLAGS.use_question_level_apr_data:
+      apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
                                 shard_id=FLAGS.shard_split_id)
 
   for example in examples:
@@ -1061,15 +1061,8 @@ def get_all_question_passage_paths(doc_span, token_to_textmap_index, entity_list
 
 def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_file=None, fixed_train_list=None):
     """Converts a single NqExample into a list of InputFeatures."""
-    print(example.questions[-1], example.question_entity_map[-1])
     if FLAGS.use_question_level_apr_data:
-        try:
-            apr_obj = ApproximatePageRank(question_id=example.example_id)
-            print("Using Question specific data")
-        except:
-            pass
-    print("here", apr_obj)
-    #print(example.questions[-1])
+        apr_obj = ApproximatePageRank(question_id=example.example_id)
     tok_to_orig_index = []
     tok_to_textmap_index = []
     orig_to_tok_index = []
@@ -1319,7 +1312,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             shortest_path_fact_count = float(len(shortest_path_aligned_facts))
             aligned_facts_subtokens = tokenize_facts(shortest_path_aligned_facts, tokenizer)
             answer_entity_ids = list(set(answer_entity_ids))
-            if FLAGS.use_shortest_path_facts and len(aligned_facts_subtokens) == 0 :
+            if len(aligned_facts_subtokens) == 0 :
                 if FLAGS.mask_non_entity_in_text and contains_an_annotation:
                     dev_valid_pos_answers -= 1
                 continue
@@ -1339,7 +1332,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                     print("Newly aligned Facts")
                     print(aligned_facts_subtokens)
             if FLAGS.use_question_rw_facts_in_shortest_path:
-                print(example.questions[-1])
                 aligned_nl_facts, aligned_facts, _, _, _, _ = get_related_facts(doc_span, tok_to_textmap_index,
                                                                       example.entity_list, apr_obj,
                                                                       tokenizer, example.question_entity_map[-1], example.answer,
@@ -1551,7 +1543,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                     + nl_fact + "\n")
                 #print(facts)
                 #exit()
-    print(len(features))
+
     return features, feature_stats
 
 
@@ -1599,8 +1591,8 @@ class CreateTFExampleFn(object):
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
     mode = 'train' if is_training else 'dev'
     self.apr_obj = None
-    #if not FLAGS.use_question_level_apr_data:
-    self.apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
+    if not FLAGS.use_question_level_apr_data:
+        self.apr_obj = ApproximatePageRank(mode=mode, task_id=FLAGS.task_id,
                                        shard_id=FLAGS.shard_split_id)
 
   def process(self, example, pretrain_file=None, fixed_train_list=None):
@@ -2458,7 +2450,7 @@ def compute_pred_dict(candidates_dict, dev_features, raw_results, tokenizer=None
   summary_dict = {}
   nq_pred_dict = {}
   for e in examples:
-    if FLAGS.mask_non_entity_in_text:
+    if True or FLAGS.mask_non_entity_in_text:
         if len(list(e.features.keys())) == 0 and len(list(e.results)) == 0:
             continue
     summary = compute_predictions(e, tokenizer,pred_fp, doc_tokens_dict)
