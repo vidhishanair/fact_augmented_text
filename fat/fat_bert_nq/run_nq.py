@@ -65,6 +65,8 @@ flags.DEFINE_string("eval_data_path", None, "Precomputed eval path for dev set")
 
 flags.DEFINE_string("train_precomputed_file", None,
                     "Precomputed tf records for training.")
+flags.DEFINE_string("eval_precomputed_file", None,
+                                    "Precomputed tf records for training.")
 
 flags.DEFINE_integer("train_num_precomputed", None,
                      "Number of precomputed tf records for training.")
@@ -2565,8 +2567,9 @@ def main(_):
     print("Evaluating 1000 steps now")
     estimator.evaluate(input_fn=train_input_fn, steps=1000)
 
-    eval_filename = os.path.join(FLAGS.eval_data_path, "eval.tf-record")
+    #eval_filename = os.path.join(FLAGS.eval_data_path, "eval.tf-record")
     #eval_filename = FLAGS.eval_data_path
+    eval_filename = FLAGS.eval_precomputed_file
     pred_fp = None
     if FLAGS.analyse_incorrect_preds:
         pred_fp = os.path.join(FLAGS.eval_data_path, "incorrect_preds.txt")
