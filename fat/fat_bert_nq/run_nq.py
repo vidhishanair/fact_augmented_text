@@ -2604,10 +2604,11 @@ def main(_):
 
     candidates_dict = read_candidates(FLAGS.predict_file)
     doc_tokens_dict = read_doc_tokens(FLAGS.predict_file)
-    eval_features = [
-        tf.train.Example.FromString(r)
-        for r in tf.python_io.tf_record_iterator(eval_filename)
-    ]
+    eval_features = []
+    for input_file in tf.gfile.Glob(eval_filename):
+        eval_features.extend([
+            tf.train.Example.FromString(r)
+            for r in tf.python_io.tf_record_iterator(input_file)])
     # eval_features = []
     print("Computing predictions")
     nq_pred_dict = compute_pred_dict(candidates_dict, eval_features,
