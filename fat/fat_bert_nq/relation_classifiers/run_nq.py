@@ -1571,7 +1571,7 @@ class FeatureWriter(object):
         self._writer.close()
 
 
-def format_and_write_result(result, tokenizer, output_fp):
+def format_and_write_result(result, tokenizer, output_fp, id2rel):
     input_ids = result["input_ids"]
     input_ids = map(int, input_ids)
     question_id = result["example_ids"]
@@ -1620,7 +1620,7 @@ def format_and_write_result(result, tokenizer, output_fp):
     answer_label = int(result["answer_label"])
     answer_label_text = BinarySPAnswerType(answer_label).name
     is_correct = predicted_label == answer_label
-    output_fp.write(str(question_id)+"\t"+str(relation_id)+"\t"+question + "\t" + facts + "\t" +
+    output_fp.write(str(question_id)+"\t"+str(relation_id)+"\t"+id2rel[relation_id]+"\t"+question + "\t" + facts + "\t" +
                     str(positive_class_scores) + "\t" +
                     predicted_label_text + "\t" + answer_label_text + "\n")
 
@@ -1751,22 +1751,25 @@ def main(_):
         output_fp = tf.gfile.Open(FLAGS.output_prediction_file, "w")
         y_true = []
         y_pred = []
+        y_pred_label = []
         relation_class_outputs = {}
         for result in estimator.predict(predict_input_fn, yield_single_examples=True):
             if len(all_results) % 1000 == 0:
                 tf.logging.info("Processing example: %d" % (len(all_results)))
             predicted_label, predicted_label_text, answer_label, \
-            answer_label_text, is_correct, positive_class_score, question_id, relation_id = format_and_write_result(result, tokenizer, output_fp)
+            answer_label_text, is_correct, positive_class_score, question_id, relation_id = format_and_write_result(result, tokenizer, output_fp, id2rel)
             metrics_counter[str(answer_label_text)+"_count"] += 1
             metrics_counter["count"] += 1
             y_true.append(int(answer_label))
-            # y_pred.append(int(predicted_label))
+            y_pred_label.append(int(predicted_label))
             y_pred.append(positive_class_score)
             if is_correct:
                 metrics_counter[str(predicted_label_text)+"_correct"] += 1
                 metrics_counter["correct"] += 1
-            if question_id not in relation_class_outputs:
+            if str(question_id) not in relation_class_outputs:
                 relation_class_outputs[str(question_id)] = {}
+            #if str(question_id) == '-1218324236':
+            #    print(str(question_id), relation_id, id2rel[relation_id], str(positive_class_score))
             relation_class_outputs[str(question_id)][id2rel[relation_id]] = str(positive_class_score)
 
         relclass_fp = tf.gfile.Open(FLAGS.relation_classifier_op, "w")
@@ -1782,6 +1785,9 @@ def main(_):
         fpr, tpr, thresholds = skl_metrics.roc_curve(y_true, y_pred)
         auc = skl_metrics.auc(fpr, tpr)
         metrics['AUC'] = auc
+        tn, fp, fn, tp = skl_metrics.confusion_matrix(y_true, y_pred_label).ravel()
+        metrics['confusion'] = {'tn':str(tn), 'tp':str(tp), 'fn':str(fn), 'fp':str(fp)}
+        print(metrics)
         output_fp = tf.gfile.Open(FLAGS.metrics_file, "w")
         json.dump(metrics, output_fp, indent=4)
 

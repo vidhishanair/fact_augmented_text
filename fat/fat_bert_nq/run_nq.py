@@ -65,6 +65,8 @@ flags.DEFINE_string("eval_data_path", None, "Precomputed eval path for dev set")
 
 flags.DEFINE_string("train_precomputed_file", None,
                     "Precomputed tf records for training.")
+flags.DEFINE_string("eval_precomputed_file", None,
+                                    "Precomputed tf records for training.")
 
 flags.DEFINE_integer("train_num_precomputed", None,
                      "Number of precomputed tf records for training.")
@@ -2573,8 +2575,9 @@ def main(_):
     print("Evaluating 1000 steps now")
     estimator.evaluate(input_fn=train_input_fn, steps=1000)
 
-    eval_filename = os.path.join(FLAGS.eval_data_path, "eval.tf-record")
+    #eval_filename = os.path.join(FLAGS.eval_data_path, "eval.tf-record")
     #eval_filename = FLAGS.eval_data_path
+    eval_filename = FLAGS.eval_precomputed_file
     pred_fp = None
     if FLAGS.analyse_incorrect_preds:
         pred_fp = os.path.join(FLAGS.eval_data_path, "incorrect_preds.txt")
@@ -2609,10 +2612,11 @@ def main(_):
 
     candidates_dict = read_candidates(FLAGS.predict_file)
     doc_tokens_dict = read_doc_tokens(FLAGS.predict_file)
-    eval_features = [
-        tf.train.Example.FromString(r)
-        for r in tf.python_io.tf_record_iterator(eval_filename)
-    ]
+    eval_features = []
+    for input_file in tf.gfile.Glob(eval_filename):
+        eval_features.extend([
+            tf.train.Example.FromString(r)
+            for r in tf.python_io.tf_record_iterator(input_file)])
     # eval_features = []
     print("Computing predictions")
     nq_pred_dict = compute_pred_dict(candidates_dict, eval_features,
