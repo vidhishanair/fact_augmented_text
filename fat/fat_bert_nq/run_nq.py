@@ -899,6 +899,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
       seed_entities = []
       facts = []
       nl_fatcs = ""
+      print(FLAGS.use_passage_seeds, FLAGS.use_question_seeds)
       if FLAGS.use_passage_seeds:
           start_index = token_to_textmap_index[doc_span.start]
           end_index = token_to_textmap_index[min(
@@ -918,7 +919,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
         if FLAGS.verbose_logging:
             print('Question seed entities: '+str(list(question_entities)))
         seed_entities.extend(list(question_entities))
-      if not use_passage_seeds and not use_question_seeds:
+      if not FLAGS.use_passage_seeds and not FLAGS.use_question_seeds:
         print("One of use_question or use passage seeds must be set. Wrong Usage!")
         exit()
 
