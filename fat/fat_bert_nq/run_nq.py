@@ -854,8 +854,10 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
   question_entity_ids = [int(apr_obj.data.ent2id[x]) for x in question_entities if x in apr_obj.data.ent2id]
   question_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in question_entity_ids])
 
-  answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer.entities if x in apr_obj.data.ent2id]
-  answer_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids])
+  answer_entity_ids, answer_entity_names = [], str([])
+  if FLAGS.is_training:
+      answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer.entities if x in apr_obj.data.ent2id]
+      answer_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids])
 
   num_hops = None
   if FLAGS.use_shortest_path_facts and not override_shortest_path:
@@ -890,6 +892,8 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
   else:
       # Adding this check since empty seeds generate random facts
       seed_entities = []
+      facts = []
+      nl_fatcs = ""
       if use_passage_seeds:
           start_index = token_to_textmap_index[doc_span.start]
           end_index = token_to_textmap_index[min(
@@ -1317,6 +1321,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                                         tokenizer, example.question_entity_map[-1], example.answer,
                                                         example.ner_entity_list, example.doc_tokens, pretrain_file)
             shortest_path_fact_count = float(len(shortest_path_aligned_facts))
+            print(shortest_path_aligned_facts)
             aligned_facts_subtokens = tokenize_facts(shortest_path_aligned_facts, tokenizer)
             answer_entity_ids = list(set(answer_entity_ids))
             if FLAGS.use_shortest_path_facts and len(aligned_facts_subtokens) == 0 :

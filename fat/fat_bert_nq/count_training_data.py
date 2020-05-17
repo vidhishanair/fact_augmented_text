@@ -6,7 +6,7 @@ tf.compat.v1.enable_eager_execution()
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_all_neg_nopos_wintrelid/"
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_all_neg_nopos_wintrelid/"
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_eq_neg_wintrelid/"
-input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/shortest_path_relsp_scores_rw20_masking_mc48_alpha0.75_mseq512_unk0.02"
+input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/fulldata_relsp_scores_rw20_mc48_alpha0.75_mseq512_unk0.02"
 
 max_train_tasks = 50
 #max_train_tasks = 1
@@ -52,6 +52,7 @@ for task in range(max_train_tasks):
 
 
 dev_count = 0
+dc_list = []
 for task in range(max_dev_tasks):
   for shard in range(max_dev_splits):
     input_file = nq_utils.get_sharded_filename(input_data_dir, "dev", task, shard, 'tf-record')
@@ -80,6 +81,8 @@ for task in range(max_dev_tasks):
     #    for r in tf.python_io.tf_record_iterator(input_file)
     #])
     dev_count += len([tf.train.Example.FromString(r) for r in tf.python_io.tf_record_iterator(input_file)])
-
+    dc_list.append(len([tf.train.Example.FromString(r) for r in tf.python_io.tf_record_iterator(input_file)]))
+    print(len([tf.train.Example.FromString(r) for r in tf.python_io.tf_record_iterator(input_file)]))
 print("Training size: "+str(train_count))
 print("Dev size: "+str(dev_count))
+print(dc_list)
