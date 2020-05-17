@@ -189,7 +189,12 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_bool(
     "use_google_entities", False,
     "Flag to use google entities")
-
+tf.flags.DEFINE_bool(
+    "use_passage_seeds", False,
+    "Flag to use passage seeds in non-sp RW")
+tf.flags.DEFINE_bool(
+    "use_question_seeds", False,
+    "Flag to use question seeds in non-sp RW")
 
 
 flags.DEFINE_integer("num_facts_limit", -1,
@@ -894,7 +899,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
       seed_entities = []
       facts = []
       nl_fatcs = ""
-      if use_passage_seeds:
+      if FLAGS.use_passage_seeds:
           start_index = token_to_textmap_index[doc_span.start]
           end_index = token_to_textmap_index[min(
               doc_span.start + doc_span.length - 1,
@@ -909,7 +914,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
             seed_entities.extend([x[2:] for idx, x in enumerate(sub_list) if x.startswith('B-') and sub_ner_list[idx] != 'None'])
           else:
             seed_entities.extend([x[2:] for idx, x in enumerate(sub_list) if x.startswith('B-')])
-      if use_question_seeds:
+      if FLAGS.use_question_seeds:
         if FLAGS.verbose_logging:
             print('Question seed entities: '+str(list(question_entities)))
         seed_entities.extend(list(question_entities))

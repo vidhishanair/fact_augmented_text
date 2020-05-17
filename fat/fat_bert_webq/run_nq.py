@@ -544,14 +544,14 @@ def create_example_from_jsonl(line):
   annotation, annotated_idx, annotated_sa, annotated_sa_entities = get_first_annotation(e)
   # annotated_idx: index of the first annotated context, -1 if null.
   # annotated_sa: short answer start and end char offsets, (-1, -1) if null.
-  question = {"input_text": e["question_text"], "entity_map": e["question_entity_map"]}
-  if FLAGS.use_google_entities:
-      for key, value in e['google_question_entity_map'].items():
-          if key in question['entity_map']:
-              question['entity_map'][key].extend(value)
-          else:
-              question['entity_map'][key] = value
-      # question['entity_map'].update(e['google_question_entity_map'])
+  question = {"input_text": e["question"], "entity_map": e["entities"]}
+  # if FLAGS.use_google_entities:
+  #     for key, value in e['google_question_entity_map'].items():
+  #         if key in question['entity_map']:
+  #             question['entity_map'][key].extend(value)
+  #         else:
+  #             question['entity_map'][key] = value
+  #     # question['entity_map'].update(e['google_question_entity_map'])
   answer = {
       "candidate_id": annotated_idx,
       "span_text": "",
