@@ -91,13 +91,17 @@ def main(_):
   instances_processed = 0
   num_examples_with_correct_context = 0
 
-  if FLAGS.create_pretrain_data or FLAGS.create_fact_annotation_data:
-      pretrain_file = open(nq_data_utils.get_sharded_filename(FLAGS.pretrain_data_dir,
+  # if FLAGS.create_pretrain_data or FLAGS.create_fact_annotation_data:
+  #     pretrain_file = open(nq_data_utils.get_sharded_filename(FLAGS.pretrain_data_dir,
+  #                                                             FLAGS.split, FLAGS.task_id,
+  #                                                             FLAGS.shard_split_id,
+  #                                                             "txt"), 'w')
+  # else:
+  #     pretrain_file = None
+  pretrain_file = open(nq_data_utils.get_sharded_filename(FLAGS.pretrain_data_dir,
                                                               FLAGS.split, FLAGS.task_id,
                                                               FLAGS.shard_split_id,
-                                                              "txt"), 'w')
-  else:
-      pretrain_file = None
+                                                              "txt"), 'w') 
 
   if FLAGS.is_training:
     fixed_train_list = None
