@@ -860,22 +860,45 @@ def get_related_facts(apr_obj, question_entity_map, answer=None, fp=None):
     question_entities = set()
     for start_idx in question_entity_map.keys():
         for sub_span in question_entity_map[start_idx]:
-            question_entities.add(sub_span[1])
+            ent_id = sub_span[1]
+            if FLAGS.filter_lower_case_entities:
+                if ent_id in apr_obj.data.ent2id:
+                    ent_kb_id = apr_obj.data.ent2id[ent_id]
+                    ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                    if ent_name != ent_name.lower():
+                        question_entities.add(ent_id)
+            else:
+                question_entities.add(ent_id)
     question_entities = list(question_entities)
+
+    answer_entities = set()
+    for ent_id in answer.entities:
+        if FLAGS.filter_lower_case_entities:
+            if ent_id in apr_obj.data.ent2id:
+                ent_kb_id = apr_obj.data.ent2id[ent_id]
+                ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                if ent_name != ent_name.lower():
+                    answer_entities.add(ent_id)
+        else:
+            answer_entities.add(ent_id)
+    answer_entities = list(answer_entities)
+
+
 
     question_entity_ids = [int(apr_obj.data.ent2id[x]) for x in question_entities if x in apr_obj.data.ent2id]
     question_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in question_entity_ids])
 
-    answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer.entities if x in apr_obj.data.ent2id]
+    answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer_entities if x in apr_obj.data.ent2id]
     answer_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids])
 
     num_hops = None
-    facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=False)
+    facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer_entities, passage_entities=[],
+                                                      seed_weighting=True, fp=fp, seperate_diff_paths=False, filter_relations=True)
 
     # random_walk_facts = apr_obj.get_facts(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
     # sorted_facts = sorted(random_walk_facts, key=lambda tup: tup[1][1], reverse=True)
 
-    question_linked_facts, question_relations = apr_obj.get_question_links(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=False)
+    question_linked_facts, question_relations = apr_obj.get_question_links(question_entities, answer_entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=False)
     nl_facts = " . ".join([
                     str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
                     for x in facts
@@ -1021,43 +1044,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
     rw_relations = []
     question_relations = [(rel_id, relation) for rel_id, relation in question_relations if relation not in positive_sp_relations]
     if is_training and FLAGS.include_unknowns > 0:
-        # rw_relations = list(set(rw_relations) - sp_relations)[:positive_counts//2]
-        # print("rw negatives: "+str(list(rw_relations)))
-        # for relation in rw_relations:
-        #     current_input_tokens = tokens.copy()
-        #     current_segments_ids = segment_ids.copy()
-        #     for token in relation.split():
-        #         sub_tokens = tokenize(tokenizer, token)
-        #         current_input_tokens.extend(sub_tokens)
-        #         current_segments_ids.extend([1 for x in sub_tokens])
-        #     current_input_tokens.append("[SEP]")
-        #     current_segments_ids.append(1)
-        #     input_ids = tokenizer.convert_tokens_to_ids(tokens)
-        #     input_mask = [1] * len(input_ids)
-        #     # input_mask = [0 if item == 0 else 1 for item in input_ids]
-        #     # Zero-pad up to the sequence length.
-        #     padding = [0] * (FLAGS.max_seq_length - len(input_ids))
-        #     input_ids.extend(padding)
-        #     input_mask.extend(padding)
-        #     current_segments_ids.extend([1 for x in padding])
-        #
-        #     feature = InputFeatures(
-        #         unique_id=-1,
-        #         example_index=-1,
-        #         tokens=current_input_tokens,
-        #         input_ids=input_ids,
-        #         input_mask=input_mask,
-        #         segment_ids=current_segments_ids,
-        #         answer_label=BinarySPAnswerType.NotIn_SP,
-        #         answer_text="Not_In_SP",
-        #         relation=relation,
-        #         num_hops=num_hops,
-        #         question_entities=question_entity_names,
-        #         question_entity_ids=question_entity_ids,
-        #         answer_entities=answer_entity_names,
-        #         answer_entity_ids=answer_entity_ids,
-        #     )
-        #     features.append(feature)
         question_neg_count = min(positive_counts, len(question_relations))
         question_relations = random.sample(question_relations, question_neg_count)
     print("question negatives: "+str(list(question_relations)))

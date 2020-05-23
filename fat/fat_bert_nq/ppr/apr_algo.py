@@ -146,7 +146,7 @@ def csr_get_k_hop_facts(seeds, adj_mat, rel_dict, k_hop):
     k_hop_entities.extend(objects)
   return list(set(k_hop_entities)), list(set(facts))
 
-def csr_get_shortest_path(question_seeds, adj_mat, answer_seeds, rel_dict, k_hop):
+def csr_get_shortest_path(question_seeds, adj_mat, answer_seeds, rel_dict, k_hop, filter_relations = False, relations_to_filter=None, id2rel=None):
   """Return list of shortest paths between question and answer seeds.
 
   Args:
@@ -177,6 +177,13 @@ def csr_get_shortest_path(question_seeds, adj_mat, answer_seeds, rel_dict, k_hop
     for ii in range(row.shape[0]):
       obj_id = row[ii]
       subj_id = seeds[col[ii]]
+
+      if filter_relations:
+        rel = rel_dict[(subj_id, obj_id)]
+        rel_kb_id = id2rel[rel]
+        if rel_kb_id in relations_to_filter:
+          continue
+
       #print('Processing link: '+str(subj_id)+" "+str(obj_id))
       if obj_id in parent_dict:
         if i == parent_dict[obj_id][-1][1]:
@@ -211,20 +218,6 @@ def csr_get_shortest_path(question_seeds, adj_mat, answer_seeds, rel_dict, k_hop
           item.append((object, rel, parent))
           new_paths.append(item)
     path = new_paths.copy()
-
-#   if len(path)>0 and FLAGS.add_random_question_facts_to_shortest_path:
-#     if FLAGS.use_only_random_facts_of_question:
-#       path = []
-#     submat = adj_mat[:, question_seeds]
-#     row, col = submat.nonzero()
-#     limit = 10
-#     if FLAGS.num_facts_limit > 0:
-#         limit = FLAGS.num_facts_limit
-#     for ii in range(min(row.shape[0],limit)):
-#       obj_id = row[ii]
-#       subj_id = question_seeds[col[ii]]
-#       rel_id = rel_dict[(subj_id, obj_id)]
-#       path.append([(), (obj_id, rel_id, subj_id)])
   if FLAGS.verbose_logging:
     print(path)
   return path, num_hops

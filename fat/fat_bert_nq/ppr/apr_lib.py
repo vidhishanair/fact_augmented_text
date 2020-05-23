@@ -26,6 +26,7 @@ from __future__ import division
 from __future__ import print_function
 
 import random
+import json
 import numpy as np
 import tensorflow as tf
 from fat.fat_bert_nq.ppr.apr_algo import csr_personalized_pagerank, csr_get_random_facts_of_question, \
@@ -59,6 +60,7 @@ class ApproximatePageRank(object):
                                 'P735': 'given name',
                                 'P27': 'country of citizenship',
                                 'P19': 'place of birth'}
+    # self.relations_to_filter = json.load('relations_to_filter.json')
 
   def get_khop_entities(self, seeds, k_hop):
     print("id2ent size: %d", len(self.data.id2ent))
@@ -284,7 +286,8 @@ class ApproximatePageRank(object):
       return augmented_path
 
 
-  def get_shortest_path_facts(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None, seperate_diff_paths=False):
+  def get_shortest_path_facts(self, question_entities, answer_entities, passage_entities,
+                              seed_weighting=True, fp=None, seperate_diff_paths=False, filter_relations=False):
       """Get subgraph describing shortest path from question to answer.
 
       Args:
@@ -339,7 +342,11 @@ class ApproximatePageRank(object):
 
       freq_dict = {x: question_entity_ids.count(x) for x in question_entity_ids}
 
-      extracted_paths, num_hops = csr_get_shortest_path(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict, k_hop=FLAGS.k_hop)
+      extracted_paths, num_hops = csr_get_shortest_path(question_entity_ids, self.data.adj_mat_t_csr,
+                                                        answer_entity_ids, self.data.rel_dict, k_hop=FLAGS.k_hop,
+                                                        filter_relations = filter_relations, relations_to_filter=self.data.relations_to_filter,
+                                                        id2rel=self.data.id2rel)
+
       if seperate_diff_paths:
           augmented_facts = self.get_all_path_augmented_facts(extracted_paths, self.data.entity_names)
       else:
