@@ -39,6 +39,7 @@ flags = tf.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('apr_files_dir', 'None', 'Read and Write apr data')
+flags.DEFINE_bool('filter_relations', False, '')
 flags.DEFINE_bool('full_wiki', True, '')
 flags.DEFINE_bool('decompose_ppv', False, '')
 flags.DEFINE_bool('relation_weighting', False, '')
@@ -110,6 +111,7 @@ class CsrData(object):
       }
       files = full_file_names if full_wiki else sub_file_names
       file_paths = {k: os.path.join(files_dir, v) for k, v in files.items()}
+    file_paths['filter_relations'] =  os.path.join(files_dir, 'relations_to_filter.json')
     return file_paths
 
   def get_next_fact(self, file_paths, full_wiki, sub_entities, sub_facts):
@@ -161,9 +163,7 @@ class CsrData(object):
       shard_level = False
     file_paths = self.get_file_names(full_wiki, files_dir, shard_level, mode, task_id, shard_id, question_id)
     tf.logging.info('KB Related filenames: %s'%(file_paths))
-    #print(file_paths)
     tf.logging.info('Loading KB')
-    # kb = sling_utils.get_kb(file_paths['kb_fname'])
 
     # Initializing Dictionaries
     ent2id = dict()
@@ -179,25 +179,12 @@ class CsrData(object):
     tmp_rdict = {}
     relation_map = {}
     all_row_ones, all_col_ones = [], []
-    count = 0
 
     tf.logging.info('Processing KB')
 
-    # for x in kb:
-    #   count += 1
-    #   if not full_wiki and count == 100000:
-    #     break  # For small KB Creation
-    #   if sling_utils.is_subj(x, kb):
-    #     subj = x.id
-    #     if sub_entities is not None and subj not in sub_entities:
-    #       continue
-    #     properties = sling_utils.get_properties(x, kb)
-    #     for (rel, obj) in properties:
-    #       if sub_entities is not None and (obj not in sub_entities):
-    #         continue
-
     for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in self.get_next_fact(file_paths, full_wiki, sub_entities, sub_facts):
-          #print(((subj, subj_name), (rel, rel_name), (obj, obj_name)))
+          if FLAGS.filter_relations and rel in self.relations_to_filter:
+              continue
           st = time.time()
           if subj not in ent2id:
             ent2id[subj] = len(ent2id)
@@ -228,10 +215,6 @@ class CsrData(object):
 
           all_row_ones.append(subj_id)
           all_col_ones.append(obj_id)
-            # Add the below for forcing bidirectional graphs
-            # all_row_ones.append(obj_id)
-            # all_col_ones.append(subj_id)
-          #print('Time taken for one: '+str(time.time() - st))
 
     kb = None
     gc.collect()
@@ -239,16 +222,12 @@ class CsrData(object):
     id2ent = {idx: ent for ent, idx in ent2id.items()}
     loaded_num_entities = len(id2ent)
     num_entities = loaded_num_entities
-    #assert loaded_num_entities == num_entities  # Sanity check for processing
-    #print('%d entities loaded' % loaded_num_entities)
-    #print("Building rel dict")
     rel_dict = sparse.dok_matrix((num_entities, num_entities), dtype=np.int16)
     for subj, relations in tmp_rdict.items():
       for obj, rel in relations.items():
         rel_dict[(subj, obj)] = rel
     del tmp_rdict
 
-    #print('Building Sparse Matrix')
     if decompose_ppv and len(relation_map)>0:  # Relation Level Sparse Matrices to weight accordingly
       for rel in relation_map:
         row_ones, col_ones = relation_map[rel]
@@ -259,13 +238,11 @@ class CsrData(object):
         relation_map[rel] = m
         # TODO(vidhisha) : Add this during Relation Training
         if FLAGS.relation_weighting:
-          # relation_embeddings = pkl.load(open(file_paths['rel_emb'], 'rb'))
           if FLAGS.rel_classifier_scores:
               if rel not in relation_scores:
                   score = self.NOTFOUNDSCORE
               else:
                   score = float(relation_scores[rel])
-              #print(rel, score)
           else:
               if rel not in relation_embeddings:
                   score = self.NOTFOUNDSCORE
@@ -361,6 +338,8 @@ class CsrData(object):
     # Performing this once instead of for every iteration
     self.adj_mat_t_csr = self.adj_mat.transpose().tocsr()
     del self.adj_mat
+
+    self.relations_to_filter = json.load(file_paths['filter_relations'])
     #tf.logging.info('Entities loaded: %d', len(list(self.ent2id.keys())))
 
 if __name__ == '__main__':
