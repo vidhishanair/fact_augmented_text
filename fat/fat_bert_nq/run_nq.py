@@ -911,7 +911,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
       seed_entities = []
       facts = []
       nl_fatcs = ""
-      nl_facts = []
+      nl_facts_list = []
       print(FLAGS.use_passage_seeds, FLAGS.use_question_seeds)
       if FLAGS.use_passage_seeds:
           start_index = token_to_textmap_index[doc_span.start]
