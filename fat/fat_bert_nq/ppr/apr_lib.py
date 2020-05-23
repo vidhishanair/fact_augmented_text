@@ -360,7 +360,8 @@ class ApproximatePageRank(object):
           print("Num hops: "+str(num_hops))
       return augmented_facts, num_hops
 
-  def get_question_links(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None, seperate_diff_paths=False):
+  def get_question_links(self, question_entities, answer_entities, passage_entities, seed_weighting=True, fp=None,
+                         seperate_diff_paths=False, filter_relations=False):
       """Get subgraph describing shortest path from question to answer.
 
       Args:
@@ -415,7 +416,10 @@ class ApproximatePageRank(object):
 
       freq_dict = {x: question_entity_ids.count(x) for x in question_entity_ids}
 
-      extracted_facts, relations = csr_get_question_links(question_entity_ids, self.data.adj_mat_t_csr, answer_entity_ids, self.data.rel_dict)
+      extracted_facts, relations = csr_get_question_links(question_entity_ids, self.data.adj_mat_t_csr,
+                                                          answer_entity_ids, self.data.rel_dict,
+                                                          filter_relations=filter_relations, relations_to_filter=self.data.relations_to_filter,
+                                                          id2rel=self.data.id2rel)
       augmented_facts = []
       relations = []
       for (subj_id, rel_id, obj_id) in extracted_facts:
