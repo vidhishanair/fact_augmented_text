@@ -413,7 +413,8 @@ def csr_topk_fact_extractor(adj_mat, rel_dict, freq_dict, entity_names,
                   (rel_id, rel_name), score))
   return facts
 
-def csr_get_question_links(question_seeds, adj_mat, answer_seeds, rel_dict):
+def csr_get_question_links(question_seeds, adj_mat, answer_seeds, rel_dict,
+                           filter_relations=False, relations_to_filter=None, id2rel=None):
   """Return list of shortest paths between question and answer seeds.
 
   Args:
@@ -438,6 +439,10 @@ def csr_get_question_links(question_seeds, adj_mat, answer_seeds, rel_dict):
     obj_id = row[ii]
     subj_id = seeds[col[ii]]
     rel = rel_dict[(subj_id, obj_id)]
+    if filter_relations:
+      rel_kb_id = id2rel[rel]
+      if rel_kb_id in relations_to_filter:
+        continue
     relations.append(rel)
     facts.append((subj_id, rel, obj_id))
   return facts, relations

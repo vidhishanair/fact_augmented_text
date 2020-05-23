@@ -898,7 +898,7 @@ def get_related_facts(apr_obj, question_entity_map, answer=None, fp=None):
     # random_walk_facts = apr_obj.get_facts(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
     # sorted_facts = sorted(random_walk_facts, key=lambda tup: tup[1][1], reverse=True)
 
-    question_linked_facts, question_relations = apr_obj.get_question_links(question_entities, answer_entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=False)
+    question_linked_facts, question_relations = apr_obj.get_question_links(question_entities, answer_entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=False, filter_relations=True)
     nl_facts = " . ".join([
                     str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
                     for x in facts
