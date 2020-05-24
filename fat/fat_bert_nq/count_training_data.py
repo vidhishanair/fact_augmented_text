@@ -5,8 +5,8 @@ tf.compat.v1.enable_eager_execution()
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/annotation_unk-1/"
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_all_neg_nopos_wintrelid/"
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_all_neg_nopos_wintrelid/"
-#input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/qrel_eq_neg_wintrelid/"
-input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/fulldata_question_seeds_downweight_incoming_kb_mc48_alpha0.75_mseq512_unk0.02"
+input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relation_classifier_data/filtered_qrel_eq_neg_wintrelid/"
+#input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/fulldata_passage_seeds_plain_kb_mc48_alpha0.75_mseq512_unk0.02"
 #input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/shortest_path_relsp_scores_rw20_masking_mc48_alpha0.75_mseq512_unk0.02"
 
 max_train_tasks = 50

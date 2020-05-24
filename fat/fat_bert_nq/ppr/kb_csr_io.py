@@ -339,7 +339,7 @@ class CsrData(object):
     self.adj_mat_t_csr = self.adj_mat.transpose().tocsr()
     del self.adj_mat
 
-    self.relations_to_filter = json.load(file_paths['filter_relations'])
+    self.relations_to_filter = json.load(open(file_paths['filter_relations']))
     #tf.logging.info('Entities loaded: %d', len(list(self.ent2id.keys())))
 
 if __name__ == '__main__':

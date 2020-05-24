@@ -205,6 +205,9 @@ tf.flags.DEFINE_bool(
 tf.flags.DEFINE_bool(
     "relevant_sp_positives_only", False,
     "Flag to use google entities")
+tf.flags.DEFINE_bool(
+    "filter_lower_case_entities", False,
+    "Flag to use filter out lower case entities")
 flags.DEFINE_integer(
             "k_hop", 2,
                 "Num of hops for shortest path query")
@@ -915,7 +918,7 @@ def get_related_facts(apr_obj, question_entity_map, answer=None, fp=None):
     rw_relations = []
     return nl_facts, facts, num_hops, sp_relations, rw_nl_facts, rw_relations, \
            question_entity_names, question_entity_ids, answer_entity_names, \
-           answer_entity_ids, question_linked_facts, question_relations
+           answer_entity_ids, question_linked_facts, list(set(question_relations))
 
 
 def tokenize_facts(nl_facts, tokenizer):
