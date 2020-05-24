@@ -137,7 +137,7 @@ class CsrData(object):
                    (rel, str(kb[rel]['name'])),
                    (obj, str(kb[obj]['name'])))
 
-  def create_and_save_csr_data(self, full_wiki, decompose_ppv, files_dir, sub_entities=None, mode=None, task_id=None, shard_id=None, question_id=None, question_embedding=None, relation_embeddings=None, relation_scores=None, sub_facts=None):
+  def create_and_save_csr_data(self, full_wiki, decompose_ppv, files_dir, sub_entities=None, mode=None, task_id=None, shard_id=None, question_id=None, question_embedding=None, relation_embeddings=None, relation_scores=None, sub_facts=None, relations_to_filter=None):
     """Return the PPR vector for the given seed and adjacency matrix.
 
       Algorithm : Parses sling KB - extracts subj, obj, rel triple and stores
@@ -162,7 +162,6 @@ class CsrData(object):
     else:
       shard_level = False
     file_paths = self.get_file_names(full_wiki, files_dir, shard_level, mode, task_id, shard_id, question_id)
-    self.relations_to_filter = json.load(open(file_paths['filter_relations']))
     tf.logging.info('KB Related filenames: %s'%(file_paths))
     tf.logging.info('Loading KB')
 
@@ -184,7 +183,7 @@ class CsrData(object):
     tf.logging.info('Processing KB')
 
     for ((subj, subj_name), (rel, rel_name), (obj, obj_name)) in self.get_next_fact(file_paths, full_wiki, sub_entities, sub_facts):
-          if FLAGS.filter_relations and rel in self.relations_to_filter:
+          if FLAGS.filter_relations and rel in relations_to_filter:
               continue
           st = time.time()
           if subj not in ent2id:

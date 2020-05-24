@@ -185,7 +185,7 @@ if __name__ == '__main__':
                                                       question_embedding=question_embedding,
                                                       relation_embeddings=relation_embeddings,
                                                       relation_scores=relation_scores,
-                                                      sub_facts=k_hop_facts)
+                                                      sub_facts=k_hop_facts, relations_to_filter=apr.data.relations_to_filter)
                     #print('Time taken for CSR: '+str(time.time() - st))
     print("No ent questions: "+str(empty_ents))
     print("No proc q: "+str(proc_q))
