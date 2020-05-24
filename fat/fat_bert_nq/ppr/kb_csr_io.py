@@ -162,6 +162,7 @@ class CsrData(object):
     else:
       shard_level = False
     file_paths = self.get_file_names(full_wiki, files_dir, shard_level, mode, task_id, shard_id, question_id)
+    self.relations_to_filter = json.load(open(file_paths['filter_relations']))
     tf.logging.info('KB Related filenames: %s'%(file_paths))
     tf.logging.info('Loading KB')
 
