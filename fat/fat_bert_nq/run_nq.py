@@ -195,7 +195,9 @@ tf.flags.DEFINE_bool(
 tf.flags.DEFINE_bool(
     "use_question_seeds", False,
     "Flag to use question seeds in non-sp RW")
-
+tf.flags.DEFINE_bool(
+    "filter_lower_case_entities", False,
+    "Flag to use filter out lower case entities")
 
 flags.DEFINE_integer("num_facts_limit", -1,
                      "Limiting number of facts")
@@ -850,30 +852,57 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
    nl_fact_tokens: Tokenized NL form of facts
   """
 
+  # question_entities = set()
+  # for start_idx in question_entity_map.keys():
+  #     for sub_span in question_entity_map[start_idx]:
+  #         question_entities.add(sub_span[1])
+  # question_entities = list(question_entities)
+
   question_entities = set()
   for start_idx in question_entity_map.keys():
       for sub_span in question_entity_map[start_idx]:
-          question_entities.add(sub_span[1])
+          ent_id = sub_span[1]
+          if FLAGS.filter_lower_case_entities:
+              if ent_id in apr_obj.data.ent2id:
+                  ent_kb_id = apr_obj.data.ent2id[ent_id]
+                  ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                  if ent_name != ent_name.lower():
+                      question_entities.add(ent_id)
+          else:
+              question_entities.add(ent_id)
   question_entities = list(question_entities)
+
+  answer_entities = set()
+  for ent_id in answer.entities:
+      if FLAGS.filter_lower_case_entities:
+          if ent_id in apr_obj.data.ent2id:
+              ent_kb_id = apr_obj.data.ent2id[ent_id]
+              ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+              if ent_name != ent_name.lower():
+                  answer_entities.add(ent_id)
+      else:
+          answer_entities.add(ent_id)
+  answer_entities = list(answer_entities)
+
 
   question_entity_ids = [int(apr_obj.data.ent2id[x]) for x in question_entities if x in apr_obj.data.ent2id]
   question_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in question_entity_ids])
 
   answer_entity_ids, answer_entity_names = [], str([])
   if FLAGS.is_training or FLAGS.mask_non_entity_in_text:
-      answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer.entities if x in apr_obj.data.ent2id]
+      answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer_entities if x in apr_obj.data.ent2id]
       answer_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids])
 
   num_hops = None
   sp_only_facts = ""
   if FLAGS.use_shortest_path_facts and not override_shortest_path:
-      facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=seperate_diff_paths)
+      facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer_entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=seperate_diff_paths)
       sp_only_facts = [
               str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
               for x in facts
           ]
       if len(facts)>0 and FLAGS.add_random_question_facts_to_shortest_path:
-            facts.extend(apr_obj.get_random_facts_of_question(question_entities, answer.entities, passage_entities=[], seed_weighting=True, fp=fp))
+            facts.extend(apr_obj.get_random_facts_of_question(question_entities, answer_entities, passage_entities=[], seed_weighting=True, fp=fp))
       if len(facts)>0 and FLAGS.add_random_walk_question_facts_to_shortest_path:
           unique_facts = apr_obj.get_facts(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
           sorted_facts = sorted(unique_facts, key=lambda tup: tup[1][1], reverse=True)
@@ -883,7 +912,6 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
 
       if FLAGS.shuffle_shortest_path_facts:
           random.shuffle(facts)
-      #print(facts)
       if seperate_diff_paths:
           merged_facts = list(itertools.chain.from_iterable(facts))
       else:
@@ -1007,25 +1035,50 @@ def get_all_question_answer_paths(apr_obj,
      nl_fact_tokens: Tokenized NL form of facts
     """
 
+    # question_entities = set()
+    # for start_idx in question_entity_map.keys():
+    #     for sub_span in question_entity_map[start_idx]:
+    #         question_entities.add(sub_span[1])
+
     question_entities = set()
     for start_idx in question_entity_map.keys():
         for sub_span in question_entity_map[start_idx]:
-            question_entities.add(sub_span[1])
+            ent_id = sub_span[1]
+            if FLAGS.filter_lower_case_entities:
+                if ent_id in apr_obj.data.ent2id:
+                    ent_kb_id = apr_obj.data.ent2id[ent_id]
+                    ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                    if ent_name != ent_name.lower():
+                        question_entities.add(ent_id)
+            else:
+                question_entities.add(ent_id)
+    question_entities = list(question_entities)
+
+    answer_entities = set()
+    for ent_id in answer.entities:
+        if FLAGS.filter_lower_case_entities:
+            if ent_id in apr_obj.data.ent2id:
+                ent_kb_id = apr_obj.data.ent2id[ent_id]
+                ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                if ent_name != ent_name.lower():
+                    answer_entities.add(ent_id)
+        else:
+            answer_entities.add(ent_id)
+    answer_entities = list(answer_entities)
 
     question_entity_ids = [int(apr_obj.data.ent2id[x]) for x in list(question_entities) if x in apr_obj.data.ent2id]
     question_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in question_entity_ids])
 
-    answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer.entities if x in apr_obj.data.ent2id]
+    answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer_entities if x in apr_obj.data.ent2id]
     answer_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids])
     
     num_hops = None
-    facts, num_hops = apr_obj.get_all_path_facts(list(question_entities), answer.entities, passage_entities=[], seed_weighting=True, fp=fp)
+    facts, num_hops = apr_obj.get_all_path_facts(list(question_entities), answer_entities, passage_entities=[], seed_weighting=True, fp=fp)
 
     nl_facts = [" . ".join([
             str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
             for x in single_path
         ]) for single_path in facts]
-    #print(nl_facts)
     return nl_facts, facts, num_hops, question_entity_names, answer_entity_names, answer_entity_ids
 
 def get_all_question_passage_paths(doc_span, token_to_textmap_index, entity_list, apr_obj,
@@ -1047,15 +1100,41 @@ def get_all_question_passage_paths(doc_span, token_to_textmap_index, entity_list
      nl_fact_tokens: Tokenized NL form of facts
     """
 
+    # question_entities = set()
+    # for start_idx in question_entity_map.keys():
+    #     for sub_span in question_entity_map[start_idx]:
+    #         question_entities.add(sub_span[1])
+
     question_entities = set()
     for start_idx in question_entity_map.keys():
         for sub_span in question_entity_map[start_idx]:
-            question_entities.add(sub_span[1])
+            ent_id = sub_span[1]
+            if FLAGS.filter_lower_case_entities:
+                if ent_id in apr_obj.data.ent2id:
+                    ent_kb_id = apr_obj.data.ent2id[ent_id]
+                    ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                    if ent_name != ent_name.lower():
+                        question_entities.add(ent_id)
+            else:
+                question_entities.add(ent_id)
+    question_entities = list(question_entities)
+
+    answer_entities = set()
+    for ent_id in answer.entities:
+        if FLAGS.filter_lower_case_entities:
+            if ent_id in apr_obj.data.ent2id:
+                ent_kb_id = apr_obj.data.ent2id[ent_id]
+                ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                if ent_name != ent_name.lower():
+                    answer_entities.add(ent_id)
+        else:
+            answer_entities.add(ent_id)
+    answer_entities = list(answer_entities)
 
     question_entity_ids = [int(apr_obj.data.ent2id[x]) for x in list(question_entities) if x in apr_obj.data.ent2id]
     question_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in question_entity_ids])
 
-    answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer.entities if x in apr_obj.data.ent2id]
+    answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer_entities if x in apr_obj.data.ent2id]
     answer_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids])
 
     start_index = token_to_textmap_index[doc_span.start]
@@ -1070,7 +1149,7 @@ def get_all_question_passage_paths(doc_span, token_to_textmap_index, entity_list
         passage_entities = [x[2:] for idx, x in enumerate(sub_list) if x.startswith('B-')]
 
     num_hops = None
-    facts, num_hops = apr_obj.get_question_to_passage_facts(list(question_entities), answer.entities, passage_entities=passage_entities, seed_weighting=True, fp=fp)
+    facts, num_hops = apr_obj.get_question_to_passage_facts(list(question_entities), answer_entities, passage_entities=passage_entities, seed_weighting=True, fp=fp)
 
     nl_facts = " . ".join([" . ".join([
         str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
