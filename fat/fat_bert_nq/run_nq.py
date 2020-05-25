@@ -907,7 +907,8 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
       if FLAGS.flip_facts:
           for x in facts:
               ((subj, obj), (rel, score)) = x
-              if (subj[0], obj[0]) in apr_obj.data.rel_dict:
+              print(subj, obj, rel, apr_obj.data.rel_dict[(obj[0], subj[0])])
+              if apr_obj.data.rel_dict[(obj[0], subj[0])] != 0:
                   rev_rel = apr_obj.data.rel_dict[(obj[0], subj[0])]
                   rev_name = apr_obj.data.entity_names['r'][str(rev_rel)]['name']
                   print(subj, obj, rel, (rev_rel, rev_name))
