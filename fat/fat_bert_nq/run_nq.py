@@ -198,7 +198,12 @@ tf.flags.DEFINE_bool(
 tf.flags.DEFINE_bool(
     "filter_lower_case_entities", False,
     "Flag to use filter out lower case entities")
-
+tf.flags.DEFINE_bool(
+    "flip_facts", False,
+    "flip subj and obj entities")
+tf.flags.DEFINE_bool(
+    "drop_facts", False,
+    "dropout facts")
 flags.DEFINE_integer("num_facts_limit", -1,
                      "Limiting number of facts")
 
@@ -897,6 +902,31 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
   sp_only_facts = ""
   if FLAGS.use_shortest_path_facts and not override_shortest_path:
       facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer_entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=seperate_diff_paths)
+
+      modified_facts = []
+      if FLAGS.flip_facts:
+          for x in facts:
+              ((subj, obj), (rel, score)) = x
+              if (subj[0], obj[0]) in apr_obj.data.rel_dict:
+                  rev_rel = apr_obj.data.rel_dict[(obj[0], subj[0])]
+                  rev_name = apr_obj.data.entity_names['r'][str(rev_rel)]['name']
+                  if random.random() > 0.7:
+                      modified_facts.append(((obj, subj), ((rev_rel, rev_name), score)))
+                  else:
+                      modified_facts.append(((subj, obj), (rel, score)))
+              else:
+                  modified_facts.append(((subj, obj), (rel, score)))
+          facts = modified_facts
+
+      modified_facts = []
+      if FLAGS.drop_facts:
+          for x in facts:
+              if random.random() > 0.9:
+                  continue
+              else:
+                  modified_facts.append(x)
+          facts = modified_facts
+
       sp_only_facts = [
               str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
               for x in facts
