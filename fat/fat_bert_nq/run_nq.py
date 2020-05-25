@@ -910,6 +910,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
               if (subj[0], obj[0]) in apr_obj.data.rel_dict:
                   rev_rel = apr_obj.data.rel_dict[(obj[0], subj[0])]
                   rev_name = apr_obj.data.entity_names['r'][str(rev_rel)]['name']
+                  print(subj, obj, rel, (rev_rel, rev_name))
                   if random.random() > 0.7:
                       modified_facts.append(((obj, subj), ((rev_rel, rev_name), score)))
                   else:
@@ -1027,6 +1028,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
         nl_facts = ""
 
   #print(nl_facts[0:1000])
+  print(nl_facts)
   # Tokening retrieved facts
   # nl_fact_tokens = tokenize_facts(nl_facts, tokenizer)
   return nl_facts, facts, num_hops, question_entity_names, answer_entity_names, answer_entity_ids, sp_only_facts, nl_facts_list
