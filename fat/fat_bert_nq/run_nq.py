@@ -902,17 +902,15 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
   sp_only_facts = ""
   if FLAGS.use_shortest_path_facts and not override_shortest_path:
       facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer_entities, passage_entities=[], seed_weighting=True, fp=fp, seperate_diff_paths=seperate_diff_paths)
-
       modified_facts = []
       if FLAGS.flip_facts:
           for x in facts:
               ((subj, obj), (rel, score)) = x
-              print(subj, obj, rel, apr_obj.data.rel_dict[(obj[0], subj[0])])
               if apr_obj.data.rel_dict[(obj[0], subj[0])] != 0:
                   rev_rel = apr_obj.data.rel_dict[(obj[0], subj[0])]
                   rev_name = apr_obj.data.entity_names['r'][str(rev_rel)]['name']
-                  print(subj, obj, rel, (rev_rel, rev_name))
-                  if random.random() > 0.7:
+                  flip_prob = random.random()
+                  if flip_prob > 0.7:
                       modified_facts.append(((obj, subj), ((rev_rel, rev_name), score)))
                   else:
                       modified_facts.append(((subj, obj), (rel, score)))
@@ -923,12 +921,12 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
       modified_facts = []
       if FLAGS.drop_facts:
           for x in facts:
-              if random.random() > 0.9:
+              drop_prob = random.random()
+              if drop_prob > 0.85:
                   continue
               else:
                   modified_facts.append(x)
           facts = modified_facts
-
       sp_only_facts = [
               str(x[0][0][1]) + " " + str(x[1][0][1]) + " " + str(x[0][1][1])
               for x in facts
