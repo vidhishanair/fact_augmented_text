@@ -3,7 +3,8 @@ import tensorflow as tf
 import fat.fat_bert_nq.nq_data_utils as nq_utils
 
 #input_data_dir = "/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/question_seeded_sharded_kb_data_alpha0.75_mc48_mseq512_unk0.02"
-input_data_dir = "/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/shortest_path_relweight_threehop_shuffle_add_question_rw20_downweighted_masking_sharded_kb_data_mc48_alpha0.75_mseq512_unk0.02"
+#input_data_dir = "/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/shortest_path_relweight_threehop_shuffle_add_question_rw20_downweighted_masking_sharded_kb_data_mc48_alpha0.75_mseq512_unk0.02"
+input_data_dir = "/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/filtered_set/filteredset_shortest_path_addquestion_rw20_masking_mc48_alpha0.75_mseq512_unk0.02"
 #input_data_dir = "/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/tmpdir_unk-1_/"
 
 #input_data_dir = "/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/sharded_new_kb_data_mc512_unk0.1_test"
@@ -16,8 +17,9 @@ mode = "train"
 max_dev_tasks = 5
 max_dev_splits = 17
 mode = "dev"
-fp = open("/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/shortest_path_relweight_threehop_shuffle_add_question_rw20_downweighted_masking_sharded_kb_data_mc48_alpha0.75_mseq512_unk0.02/unique_id_list_0000.txt", "w")
+fp = open("/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/relsp_expts/filtered_set/filteredset_shortest_path_addquestion_rw20_masking_mc48_alpha0.75_mseq512_unk0.02/unique_id_list.txt", "w")
 #fp = open("/remote/bones/user/vbalacha/google-research/fat/fat/fat_bert_nq/generated_files/tmpdir_unk-1_/unique_id_list_0000.txt", "w")
+
 name_to_features = {
               "unique_ids": tf.FixedLenFeature([], tf.int64),
                     "input_ids": tf.FixedLenFeature([512], tf.int64),
