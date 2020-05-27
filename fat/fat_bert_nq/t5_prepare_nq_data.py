@@ -82,6 +82,10 @@ flags.DEFINE_string(
 flags.DEFINE_string("predict_files", "", "Eval data")
 
 flags.DEFINE_string("input_data_dir", "", "input_data_dir")
+flags.DEFINE_string("qi_apr_path", "", "QI PPR Path")
+flags.DEFINE_string("ws_apr_path", "", "WS PPR Path")
+flags.DEFINE_integer("num_facts_limit", -1,
+                     "Limiting number of facts")
 
 flags.DEFINE_string("output_data_dir", " ", "output_data_dir")
 flags.DEFINE_bool("merge_eval", "True", "Flag for pre-proc or merge")
