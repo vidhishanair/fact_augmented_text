@@ -84,8 +84,6 @@ flags.DEFINE_string("predict_files", "", "Eval data")
 flags.DEFINE_string("input_data_dir", "", "input_data_dir")
 flags.DEFINE_string("qi_apr_path", "", "QI PPR Path")
 flags.DEFINE_string("ws_apr_path", "", "WS PPR Path")
-flags.DEFINE_integer("num_facts_limit", -1,
-                     "Limiting number of facts")
 
 flags.DEFINE_string("output_data_dir", " ", "output_data_dir")
 flags.DEFINE_bool("merge_eval", "True", "Flag for pre-proc or merge")
@@ -148,12 +146,12 @@ def get_related_facts(question_entity_map, answer_entity_map, apr_obj,
     # answer_entity_ids, answer_entity_names = [], str([])
     answer_entity_ids = [int(apr_obj.data.ent2id[x]) for x in answer_entities if x in apr_obj.data.ent2id]
     answer_entity_names = str([apr_obj.data.entity_names['e'][str(x)]['name'] for x in answer_entity_ids])
-
+    print(question_entity_names, answer_entity_names)
     num_hops = 0
     sp_only_facts = ""
     sp_facts, num_hops = apr_obj.get_shortest_path_facts(question_entities, answer_entities, passage_entities=[], seed_weighting=True)
 
-    drop_flip_facts = sp_facts
+    drop_flip_facts = sp_facts.copy()
     modified_facts = []
     if flip_facts:
         for x in sp_facts:
@@ -180,14 +178,19 @@ def get_related_facts(question_entity_map, answer_entity_map, apr_obj,
                 modified_facts.append(x)
         drop_flip_facts = modified_facts
 
-    sp_rw_facts = sp_facts
-    sp_dropflip_rw_facts = sp_facts
-    unique_facts = apr_obj.get_facts(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
-    rw_facts = sorted(unique_facts, key=lambda tup: tup[1][1], reverse=True)
+    sp_rw_facts = sp_facts.copy()
+    sp_dropflip_rw_facts = sp_facts.copy()
+    unique_facts = []
+    rw_facts = []
+    if len(question_entities) > 0:
+        unique_facts = apr_obj.get_facts(question_entities, topk=200, alpha=FLAGS.alpha, seed_weighting=True)
+        rw_facts = sorted(unique_facts, key=lambda tup: tup[1][1], reverse=True)
     if FLAGS.num_facts_limit > 0:
         rw_facts = rw_facts[0:FLAGS.num_facts_limit]
-    sp_rw_facts.extend(rw_facts)
-    sp_dropflip_rw_facts.extend(rw_facts)
+    if len(sp_rw_facts) > 0:
+        sp_rw_facts.extend(rw_facts)
+    if len(sp_dropflip_rw_facts) > 0:
+        sp_dropflip_rw_facts.extend(rw_facts)
 
     random.shuffle(sp_facts)
     random.shuffle(drop_flip_facts)
@@ -236,8 +239,8 @@ def nq_jsonl_to_tsv(in_fname, out_fname):
     plain_ppr_apr_obj = ApproximatePageRank(mode=FLAGS.split, task_id=FLAGS.task_id,
                                                            shard_id=FLAGS.shard_split_id)
 
-    with tf.io.gfile.GFile(in_fname, "rb") as infile, \
-            tf.io.gfile.GFile(out_fname, "w") as outfile:
+    with tf.gfile.GFile(in_fname, "rb") as infile, \
+            tf.gfile.GFile(out_fname, "w") as outfile:
         for line in gzip.open(infile):
             ex = json.loads(line)
             # Remove any examples with more than one answer.
@@ -262,32 +265,42 @@ def nq_jsonl_to_tsv(in_fname, out_fname):
             ppr_sp_rw_nl_facts, ppr_rw_nl_facts, ppr_num_hops = get_related_facts(question_entities, answer_entities, plain_ppr_apr_obj,
                               filter_lower_case_entities=False, drop_facts=False, flip_facts=False)
 
-            qi_apr_obj = ApproximatePageRank(question_id=ex['example_id'], apr_path=FLAGS.qi_apr_path)
+            try:
+                qi_apr_obj = ApproximatePageRank(question_id=ex['example_id'], apr_path=FLAGS.qi_apr_path)
 
-            qi_sp_nl_facts, qi_drop_flip_nl_facts, qi_drop_flip_rw_nl_facts,\
-            qi_sp_rw_nl_facts, qi_rw_nl_facts, qi_num_hops = get_related_facts(question_entities, answer_entities, qi_apr_obj,
+                qi_sp_nl_facts, qi_drop_flip_nl_facts, qi_drop_flip_rw_nl_facts,\
+                qi_sp_rw_nl_facts, qi_rw_nl_facts, qi_num_hops = get_related_facts(question_entities, answer_entities, qi_apr_obj,
                                                                                   filter_lower_case_entities=False, drop_facts=False, flip_facts=False)
+            except:
+                cqi_sp_nl_facts, qi_drop_flip_nl_facts, qi_drop_flip_rw_nl_facts,\
+                                        qi_sp_rw_nl_facts, qi_rw_nl_facts, qi_num_hops = "", "", "", "", "", 0
 
-            ws_apr_obj = ApproximatePageRank(question_id=ex['example_id'], apr_path=FLAGS.ws_apr_path)
+            try:
+                ws_apr_obj = ApproximatePageRank(question_id=ex['example_id'], apr_path=FLAGS.ws_apr_path)
 
-            ws_sp_nl_facts, ws_drop_flip_nl_facts, ws_drop_flip_rw_nl_facts,\
-            ws_sp_rw_nl_facts, ws_rw_nl_facts, ws_num_hops = get_related_facts(question_entities, answer_entities, ws_apr_obj,
+                ws_sp_nl_facts, ws_drop_flip_nl_facts, ws_drop_flip_rw_nl_facts,\
+                ws_sp_rw_nl_facts, ws_rw_nl_facts, ws_num_hops = get_related_facts(question_entities, answer_entities, ws_apr_obj,
                                                                                filter_lower_case_entities=True, drop_facts=True, flip_facts=True)
+            except:
+                ws_sp_nl_facts, ws_drop_flip_nl_facts, ws_sp_rw_nl_facts, ws_drop_flip_rw_nl_facts, ws_rw_nl_facts, ws_num_hops = "","","","","", 0
 
             # Write this line as <question>\t<answer>
             output_json = {"example_id": ex['example_id'],
                            "question": question,
                            "answer": answer,
+                           "plain_ppr_sp_num_hops": ppr_num_hops,
                            "plain_ppr_sp_facts": ppr_sp_nl_facts,
                            "plain_ppr_sp_rw_facts": ppr_sp_rw_nl_facts,
                            "plain_ppr_rw_facts": ppr_rw_nl_facts,
                            "qi_ppr_rw_facts": qi_rw_nl_facts,
+                           "filtered_sp_num_hops": ws_num_hops,
                            "filtered_sp_facts": ws_sp_nl_facts,
                            "filtered_dropflip_sp_facts": ws_drop_flip_nl_facts,
                            "filtered_sp_rw_facts": ws_sp_rw_nl_facts,
                            "filtered_dropflip_sp_rw_facts": ws_drop_flip_rw_nl_facts,
-                           "ws_rw_facts": ws_rw_nl_facts
+                           "filtered_ws_rw_facts": ws_rw_nl_facts
                            }
+            print(output_json)
             outfile.write(json.dumps(output_json)+"\n")
             count += 1
             tf.logging.log_every_n(
@@ -298,33 +311,41 @@ def nq_jsonl_to_tsv(in_fname, out_fname):
 
 
 def main(_):
-  input_file = nq_data_utils.get_sharded_filename(FLAGS.input_data_dir,
-                                                FLAGS.split, FLAGS.task_id,
-                                                FLAGS.shard_split_id,
-                                                "jsonl.gz")
-  print("Reading file %s", input_file)
-  output_file = nq_data_utils.get_sharded_filename(FLAGS.output_data_dir,
-                                                 FLAGS.split, FLAGS.task_id,
-                                                 FLAGS.shard_split_id,
-                                                 "jsonl")
-  nq_jsonl_to_tsv(input_file, output_file)
-
-  # for task in range(FLAGS.max_tasks):
-  #   for shard_split in range(FLAGS.max_shard_splits):
-  #     input_file = nq_data_utils.get_sharded_filename(FLAGS.input_data_dir,
-  #                                                   FLAGS.split, task,
-  #                                                   shard_split,
-  #                                                   "jsonl")
-  #     if FLAGS.split == 'train':
-  #         output_file = os.path.join(FLAGS.input_data_dir, "all_train.jsonl")
-  #     else:
-  #         output_file = os.path.join(FLAGS.input_data_dir, "all_dev.jsonl")
-  #     print("Reading file %s", input_file)
-  #     fp = open(input_file)
-  #     op = open(output_file, 'w')
-  #     for line in fp:
-  #         op.write(line+"\n")
+  # input_file = nq_data_utils.get_sharded_filename(FLAGS.input_data_dir,
+  #                                               FLAGS.split, FLAGS.task_id,
+  #                                               FLAGS.shard_split_id,
+  #                                               "jsonl.gz")
+  # print("Reading file %s", input_file)
+  # output_file = nq_data_utils.get_sharded_filename(FLAGS.output_data_dir,
+  #                                                FLAGS.split, FLAGS.task_id,
+  #                                                FLAGS.shard_split_id,
+  #                                                "jsonl")
+  # count = nq_jsonl_to_tsv(input_file, output_file)
+  # print(count)
+  input_data_dir = '/remote/bones/user/vbalacha/fact_augmented_text/fat/fat_bert_nq/generated_files/nq_t5_data_new/'
+  stats = {'train':(50,7), 'dev':(4,16)}
+  for split in ['train', 'dev']:
+    if split == 'train':
+      output_file = os.path.join(input_data_dir, "all_train.jsonl")
+    else:
+      output_file = os.path.join(input_data_dir, "all_dev.jsonl")
+    op = open(output_file, 'w')
+    count = 0
+    for task in range(stats[split][0]):
+      for shard_split in range(stats[split][1]):
+        input_file = nq_data_utils.get_sharded_filename(input_data_dir,
+                                                      split, task,
+                                                      shard_split,
+                                                      "jsonl")
+        if not os.path.exists(input_file):
+            continue
+        print("Reading file %s", input_file)
+        fp = open(input_file)
+        for line in fp:
+            count += 1
+            op.write(line+"\n")
+    print(count)
 
 if __name__ == "__main__":
-  flags.mark_flag_as_required("vocab_file")
+  #flags.mark_flag_as_required("vocab_file")
   tf.app.run()

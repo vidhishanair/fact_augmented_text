@@ -51,7 +51,7 @@ class ApproximatePageRank(object):
     self.data = CsrData()
     apr_path = FLAGS.apr_files_dir if apr_path is None else apr_path
     self.data.load_csr_data(
-        full_wiki=FLAGS.full_wiki, files_dir=FLAGS.apr_files_dir,
+        full_wiki=FLAGS.full_wiki, files_dir=apr_path,
         mode=mode, task_id=task_id, shard_id=shard_id, question_id=question_id)
     self.high_freq_relations = {'P31': 'instance of',
                                 'P17': 'country',
