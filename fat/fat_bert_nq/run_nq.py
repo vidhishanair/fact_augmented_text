@@ -877,16 +877,19 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
               question_entities.add(ent_id)
   question_entities = list(question_entities)
 
+  #answer_entities = []
+  #if FLAGS.is_training:
   answer_entities = set()
-  for ent_id in answer.entities:
-      if FLAGS.filter_lower_case_entities:
-          if ent_id in apr_obj.data.ent2id:
-              ent_kb_id = apr_obj.data.ent2id[ent_id]
-              ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
-              if ent_name != ent_name.lower():
-                  answer_entities.add(ent_id)
-      else:
-          answer_entities.add(ent_id)
+  if answer is not None:
+      for ent_id in answer.entities:
+          if FLAGS.filter_lower_case_entities:
+              if ent_id in apr_obj.data.ent2id:
+                  ent_kb_id = apr_obj.data.ent2id[ent_id]
+                  ent_name = apr_obj.data.entity_names['e'][str(ent_kb_id)]['name']
+                  if ent_name != ent_name.lower():
+                      answer_entities.add(ent_id)
+          else:
+              answer_entities.add(ent_id)
   answer_entities = list(answer_entities)
 
 
@@ -922,7 +925,7 @@ def get_related_facts(doc_span, token_to_textmap_index, entity_list, apr_obj,
       if FLAGS.drop_facts:
           for x in facts:
               drop_prob = random.random()
-              if drop_prob > 0.85:
+              if drop_prob > 0.50:
                   continue
               else:
                   modified_facts.append(x)
