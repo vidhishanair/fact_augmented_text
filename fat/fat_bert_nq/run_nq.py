@@ -1519,7 +1519,7 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                 if FLAGS.verbose_logging:
                     print("Newly aligned Facts")
                     print(aligned_facts_subtokens)
-                pretrain_file.write(str(example.questions[-1])+"\t"+str(question_entity_names)+"\t"+str(answer_entity_names)+"\t"+str(answer_entity_ids)+"\t"+str(answers_reached)+"\t"+str(sp_only_facts)+"\t"+str(shortest_path_aligned_facts)+"\t"+str(aligned_nl_facts)+"\t"+str(fact_recall_counter)+"\t"+str(answer_recall_counter)+"\n")
+                pretrain_file.write(str(example.example_id)+"\t"+str(example.questions[-1])+"\t"+str(question_entity_names)+"\t"+str(answer_entity_names)+"\t"+str(answer_entity_ids)+"\t"+str(answers_reached)+"\t"+str(sp_only_facts)+"\t"+str(shortest_path_aligned_facts)+"\t"+str(aligned_nl_facts)+"\t"+str(fact_recall_counter)+"\t"+str(answer_recall_counter)+"\n")
             if FLAGS.use_question_to_passage_facts_in_shortest_path:
                 aligned_nl_facts, aligned_facts, _, _, _, _, nl_fact_list = get_all_question_passage_paths(doc_span, tok_to_textmap_index,
                                                                             example.entity_list, apr_obj,
