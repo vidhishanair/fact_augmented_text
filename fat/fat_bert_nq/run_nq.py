@@ -1419,7 +1419,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                 anonymized_text_only_tokens.append('[unused'+str(ent_count)+']')
             else:
                 anonymized_text_only_tokens.append(all_doc_tokens[split_token_index])
-            #print(e_val, all_doc_tokens[split_token_index], tokens[-1])
             if FLAGS.mask_non_entity_in_text :
                 if contains_an_annotation and (split_token_index>=tok_start_position and split_token_index<=tok_end_position):
                     answer_version.append(masked_text_tokens[-1])
@@ -1444,18 +1443,15 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             dev_valid_pos_answers += 1
         else:
             pass
-        # print(" ".join(tokens)+"\n"+" ".join(masked_text_tokens)+"\n"+" ".join(tmp_eval)+"\n\n")
         valid_count += 1
-        #print(" ".join(text_tokens).replace(" ##", ""))
         if FLAGS.create_pretrain_data:
             pretrain_file.write(" ".join(text_tokens).replace(" ##", "")+"\n")
 
         fact_recall_counter = 0
-        answers_reached = 0
+        answers_reached = []
         answer_recall_counter = 0
         answer_entity_ids = 0
         if FLAGS.augment_facts:
-            #pretrain_file.write(example.questions[-1]+"\t"+" ".join(answer_version)+"\t")
             if FLAGS.verbose_logging:
                 print(example.questions[-1])
                 print(answer_version)
@@ -1465,7 +1461,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                                         tokenizer, example.question_entity_map[-1], example.answer,
                                                         example.ner_entity_list, example.doc_tokens, pretrain_file)
             sp_only_facts = " . ".join(sp_only_fact_list)
-            #shortest_path_fact_count = float(len(shortest_path_aligned_facts))
             shortest_path_fact_count = float(len(set(sp_only_fact_list)))
             aligned_facts_subtokens = tokenize_facts(shortest_path_aligned_facts, tokenizer)
             answer_entity_ids = list(set(answer_entity_ids))
@@ -1480,11 +1475,8 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                                                       example.ner_entity_list, example.doc_tokens, pretrain_file,
                                                                       override_shortest_path=True)
                 aligned_facts_subtokens = tokenize_facts(aligned_nl_facts, tokenizer)
-                #aligned_facts_in_shortest_path = set(aligned_nl_facts).intersection(set(shortest_path_aligned_facts))
-                #fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
                 aligned_facts_in_shortest_path = set(nl_fact_list).intersection(set(sp_only_fact_list))
                 fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count 
-                #obj_ids = [x[0][1][0] for x in aligned_facts]
                 obj_ids = []
                 for x in aligned_facts:
                     obj_ids.extend([x[0][1][0], x[0][0][0]])
@@ -1502,20 +1494,13 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                                                       override_shortest_path=True, use_passage_seeds=False,
                                                                       use_question_seeds=True)
                 aligned_facts_subtokens = tokenize_facts(aligned_nl_facts, tokenizer)
-                #aligned_facts_in_shortest_path = set(aligned_nl_facts).intersection(set(shortest_path_aligned_facts))
-                #fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
-                #shortest_path_fact_count = float(len(set(sp_only_fact_list)))
                 aligned_facts_in_shortest_path = set(nl_fact_list).intersection(set(sp_only_fact_list))
                 fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
-
-                #obj_ids = [x[0][1][0] for x in aligned_facts]
                 obj_ids = []
                 for x in aligned_facts:
                     obj_ids.extend([x[0][1][0], x[0][0][0]])
                 answers_reached = list(set([x for x in obj_ids if x in answer_entity_ids]))
-                #print(answer_entity_ids, len(answer_entity_ids), len(answers_reached), answers_reached)
                 answer_recall_counter = len(answers_reached)/float(len(set(answer_entity_ids)))
-                #print(answer_recall_counter)
                 if FLAGS.verbose_logging:
                     print("Newly aligned Facts")
                     print(aligned_facts_subtokens)
@@ -1528,11 +1513,8 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
                                                                             example.ner_entity_list, example.doc_tokens,
                                                                             pretrain_file)
                 aligned_facts_subtokens = tokenize_facts(aligned_nl_facts, tokenizer)
-                #aligned_facts_in_shortest_path = set(aligned_nl_facts).intersection(set(shortest_path_aligned_facts))
-                #fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
                 aligned_facts_in_shortest_path = set(nl_fact_list).intersection(set(sp_only_fact_list))
                 fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
-                #obj_ids = [x[0][1][0] for single_path in aligned_facts for x in single_path]
                 obj_ids = []
                 for x in aligned_facts:
                     obj_ids.extend([x[0][1][0], x[0][0][0]])
@@ -1675,7 +1657,8 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             num_hops=num_hops,
             entity_list=example.entity_list,
             token_to_textmap_index=tok_to_textmap_index,
-            question_entity_map=example.question_entity_map[-1]
+            question_entity_map=example.question_entity_map[-1],
+            answers_reached=0 if len(answers_reached) == 0 else 1
         )  # Added facts to is max context and token to orig?
         features.append(feature)
         feature_stats.append({'fact_recall_counter':fact_recall_counter, 'answers_reached':answers_reached,
@@ -1813,6 +1796,7 @@ class CreateTFExampleFn(object):
 
       if FLAGS.use_shortest_path_facts:
         features["shortest_path_num_hops"] = create_int_feature([input_feature.num_hops])
+        features["answers_reached"] = create_int_feature([input_feature.answers_reached])
 
 
       if self.is_training:
@@ -1860,7 +1844,8 @@ class InputFeatures(object):
                num_hops=None,
                question_entity_map=None,
                entity_list=None,
-               token_to_textmap_index=None):
+               token_to_textmap_index=None,
+               answers_reached=None):
     self.unique_id = unique_id
     self.example_index = example_index
     self.doc_span_index = doc_span_index
@@ -1886,6 +1871,7 @@ class InputFeatures(object):
     self.entity_list = entity_list
     self.question_entity_map = question_entity_map
     self.token_to_textmap_index = token_to_textmap_index
+    self.answers_reached = answers_reached
 
 
 def read_nq_examples(input_file, is_training):
@@ -2168,6 +2154,8 @@ def input_fn_builder(input_file, seq_length, is_training, drop_remainder):
 
   if FLAGS.use_shortest_path_facts:
       name_to_features["shortest_path_num_hops"] = tf.FixedLenFeature([], tf.int64)
+      name_to_features["answers_reached"] = tf.FixedLenFeature([], tf.int64)
+
 
   def _decode_record(record, name_to_features):
     """Decodes a record to a TensorFlow example."""
@@ -2264,6 +2252,7 @@ class FeatureWriter(object):
 
     if FLAGS.use_shortest_path_facts:
         features["shortest_path_num_hops"] = create_int_feature([feature.num_hops])
+        features["answers_reached"] = create_int_feature([feature.answers_reached])
 
     if self.is_training:
       features["start_positions"] = create_int_feature([feature.start_position])
@@ -2361,6 +2350,7 @@ def compute_predictions(example, tokenizer = None, pred_fp = None, doc_tokens_di
   n_best_size = 10
   max_answer_length = 30
   num_hops = None
+  answers_reached = None
   example_id = None
   for unique_id, result in example.results.items():
     if unique_id not in example.features:
@@ -2379,6 +2369,9 @@ def compute_predictions(example, tokenizer = None, pred_fp = None, doc_tokens_di
         masked_input_ids = example.features[unique_id]["anonymized_text_only_tokens_input_ids"].int64_list.value
     if FLAGS.use_shortest_path_facts:
         num_hops = example.features[unique_id]["shortest_path_num_hops"].int64_list.value[0]
+        if "answers_reached" in example.features[unique_id]:
+            answers_reached = example.features[unique_id]["answers_reached"].int64_list.value[0]
+
     start_indexes = get_best_indexes(result["start_logits"], n_best_size)
     end_indexes = get_best_indexes(result["end_logits"], n_best_size)
     summary = None
@@ -2462,22 +2455,6 @@ def compute_predictions(example, tokenizer = None, pred_fp = None, doc_tokens_di
       for (n_score, n_summary, n_start_span, n_end_span, n_input_ids, n_masked_input_ids, n_unique_id) in sorted_preds[0:5]:
           if n_unique_id is None:
               continue
-          # question_entity_map = example.features[n_unique_id]["question_entity_map"].int64_list.value
-          # document_entity_list = example.features[n_unique_id]["entity_list"].int64_list.value
-          # token_to_textmap_index = example.features[n_unique_id]["token_to_textmap_index"].int64_list.value
-
-          # start_index = token_to_textmap_index[n_start_span]
-          # end_index = token_to_textmap_index[min(n_end_span,
-          #     len(token_to_textmap_index) -
-          #     1)]  # putting this min check need to check all this later
-          #
-          # sub_list = document_entity_list[start_index:end_index + 1]
-          #
-          # question_entities = set()
-          # for start_idx in question_entity_map.keys():
-          #     for sub_span in question_entity_map[start_idx]:
-          #         question_entities.add(sub_span[1])
-          # question_entities = list(question_entities)
 
           answer = doc_tokens_dict[example.example_id][n_start_span:n_end_span]
 
@@ -2549,38 +2526,8 @@ def compute_predictions(example, tokenizer = None, pred_fp = None, doc_tokens_di
       "masked_input_ids": masked_input_ids,
       "masked_input_text": masked_input_text,
       "shortest_path_num_hops": num_hops,
+      "answers_reached": answers_reached,
   }
-
-  # if FLAGS.write_pred_analysis:
-      # input_ids = map(int, input_ids)
-      # question = []
-      # text = []
-      # facts = []
-      # current='question'
-      # for token in input_ids:
-      #     try:
-      #         word = tokenizer.convert_ids_to_tokens([token])[0]
-      #         if current == 'question':
-      #             question.append(word)
-      #         elif current == 'text':
-      #             text.append(word)
-      #         elif current == 'facts':
-      #             facts.append(word)
-      #         else:
-      #             print("Some exception in current word")
-      #             print(current)
-      #         if word == '[SEP]' and current == 'question':
-      #             current = 'text'
-      #         elif word == '[SEP]' and current == 'text':
-      #             current = 'facts'
-      #         else:
-      #             continue
-      #     except:
-      #         print('didnt tokenize')
-      #
-      # pred_fp.write(" ".join(question).replace(" ##","")+"\t")
-      # pred_fp.write(" ".join(text).replace(" ##", "")+"\t")
-      # pred_fp.write(" ".join(facts).replace(" ##","")+"\n")
   return summary
 
 
