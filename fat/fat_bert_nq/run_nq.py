@@ -1464,6 +1464,16 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             shortest_path_fact_count = float(len(set(sp_only_fact_list)))
             aligned_facts_subtokens = tokenize_facts(shortest_path_aligned_facts, tokenizer)
             answer_entity_ids = list(set(answer_entity_ids))
+
+            aligned_facts_in_shortest_path = set(shortest_path_facts).intersection(set(sp_only_fact_list))
+            fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
+            obj_ids = []
+            for x in shortest_path_facts:
+                obj_ids.extend([x[0][1][0], x[0][0][0]])
+            answers_reached = list(set([x for x in obj_ids if x in answer_entity_ids]))
+            answer_recall_counter = len(answers_reached)/float(len(set(answer_entity_ids)))
+
+
             if FLAGS.use_shortest_path_facts and len(aligned_facts_subtokens) == 0 :
                 if FLAGS.mask_non_entity_in_text and contains_an_annotation:
                     dev_valid_pos_answers -= 1
