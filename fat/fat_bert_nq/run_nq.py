@@ -1465,6 +1465,12 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             aligned_facts_subtokens = tokenize_facts(shortest_path_aligned_facts, tokenizer)
             answer_entity_ids = list(set(answer_entity_ids))
 
+
+            if FLAGS.use_shortest_path_facts and len(aligned_facts_subtokens) == 0 :
+                if FLAGS.mask_non_entity_in_text and contains_an_annotation:
+                    dev_valid_pos_answers -= 1
+                continue
+
             aligned_facts_in_shortest_path = set(shortest_path_facts).intersection(set(sp_only_fact_list))
             fact_recall_counter = len(aligned_facts_in_shortest_path)/shortest_path_fact_count
             obj_ids = []
@@ -1474,10 +1480,6 @@ def convert_single_example(example, tokenizer, apr_obj, is_training, pretrain_fi
             answer_recall_counter = len(answers_reached)/float(len(set(answer_entity_ids)))
 
 
-            if FLAGS.use_shortest_path_facts and len(aligned_facts_subtokens) == 0 :
-                if FLAGS.mask_non_entity_in_text and contains_an_annotation:
-                    dev_valid_pos_answers -= 1
-                continue
             if FLAGS.use_passage_rw_facts_in_shortest_path:
                 aligned_nl_facts, aligned_facts, _, _, _, _, _, nl_fact_list = get_related_facts(doc_span, tok_to_textmap_index,
                                                                       example.entity_list, apr_obj,
