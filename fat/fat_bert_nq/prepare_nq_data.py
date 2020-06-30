@@ -89,6 +89,7 @@ flags.DEFINE_string("pretrain_data_dir", " ", "pretrain_data_dir")
 def main(_):
   examples_processed = 0
   instances_processed = 0
+  examples_with_instances = 0
   num_examples_with_correct_context = 0
 
   # if FLAGS.create_pretrain_data or FLAGS.create_fact_annotation_data:
@@ -121,10 +122,12 @@ def main(_):
                           'single_answer_reach_counter':0, 'multi_answer_recall':0,
                           'single_answer_counter':0, 'multi_answer_counter':0, 'multi_answer_size_counter':0}
     for example in nq_data_utils.get_nq_examples(input_file):
+      ins_count = 0
       stats_count = None
       for instance, stats_count in creator_fn.process(example, pretrain_file, fixed_train_list):
         instances.append(instance)
         instances_processed += 1
+        ins_count = 1
         if FLAGS.use_passage_rw_facts_in_shortest_path or FLAGS.use_question_to_passage_facts_in_shortest_path:
             file_stats_counter['example_count'] += 1
             file_stats_counter['sp_recall_sum'] += stats_count['fact_recall_counter']
@@ -161,6 +164,7 @@ def main(_):
         print("Examples processed: %d", examples_processed)
         print("Instances processed: %d", instances_processed)
       examples_processed += 1
+      examples_with_instances += ins_count
       if FLAGS.max_examples > 0 and examples_processed >= FLAGS.max_examples:
         break
       #time.sleep(5)
@@ -197,6 +201,7 @@ def main(_):
         fp.write("Multi Answer Example count: "+str(file_stats_counter['multi_answer_counter'])+"\n")
         fp.write("Multi Answer recall sum: "+str(file_stats_counter['multi_answer_recall'])+"\n")
         fp.write("Multi Answer Size counter: "+str(file_stats_counter['multi_answer_size_counter'])+"\n")
+        fp.write("Examples with instances Processed: "+str(examples_with_instances)+"\n")
 
   # For eval - First process every shard in parallel
   elif not FLAGS.is_training and not FLAGS.merge_eval:
